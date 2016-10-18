@@ -22,8 +22,8 @@ public class CBFM{
 		dimension = indexedColumns.length;
 	}
 	public static int[] reducedimensions;	// 所删减的维度组合（一个元素表示一个删减组合，使用int的最低的几个位，置为1表示需要砍掉）
-	private static int dimension;			// 维度数
-	private static String[] indexedColumns;	// 建立索引的列名
+	public static int dimension;			// 维度数
+	public static String[] indexedColumns;	// 建立索引的列名
 
 	public static boolean DEBUG = true;
 	
@@ -585,5 +585,9 @@ public class CBFM{
 				}
 			}
 		}
+	}
+
+	public long[] getTable(){
+		return bit_table_;
 	}
 }

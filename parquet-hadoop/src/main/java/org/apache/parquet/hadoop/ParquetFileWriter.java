@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import me.yongshang.CBFM.CBFM;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -75,6 +76,10 @@ import org.apache.parquet.schema.TypeUtil;
  *
  */
 public class ParquetFileWriter {
+  // CBFM support
+  private byte[][][] rows;
+  private int rowIndex;
+
   private static final Log LOG = Log.getLog(ParquetFileWriter.class);
 
   private static ParquetMetadataConverter metadataConverter = new ParquetMetadataConverter();
@@ -88,7 +93,6 @@ public class ParquetFileWriter {
   // need to supply a buffer size when setting block size. this is the default
   // for hadoop 1 to present. copying it avoids loading DFSConfigKeys.
   private static final int DFS_BUFFER_SIZE_DEFAULT = 4096;
-
   // visible for testing
   static final Set<String> BLOCK_FS_SCHEMES = new HashSet<String>();
   static {
@@ -292,6 +296,8 @@ public class ParquetFileWriter {
 
     currentBlock = new BlockMetaData();
     currentRecordCount = recordCount;
+
+    rows = new byte[(int)recordCount][CBFM.dimension][];
   }
 
   /**
@@ -317,6 +323,8 @@ public class ParquetFileWriter {
     // need to know what type of stats to initialize to
     // better way to do this?
     currentStatistics = Statistics.getStatsBasedOnType(currentChunkType);
+
+    rowIndex = 0;
   }
 
   /**
@@ -400,6 +408,14 @@ public class ParquetFileWriter {
       Encoding dlEncoding,
       Encoding valuesEncoding) throws IOException {
     state = state.write();
+    // TODO seriously test this
+    String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+    for(int i = 0; i < CBFM.dimension; ++i){
+      if(CBFM.indexedColumns[i].equals(currentColumnName)){
+        rows[rowIndex++][i] = bytes.toByteArray();
+      }
+    }
+
     long beforeHeader = out.getPos();
     if (DEBUG) LOG.debug(beforeHeader + ": write data page: " + valueCount + " values");
     int compressedPageSize = (int)bytes.size();
@@ -486,6 +502,14 @@ public class ParquetFileWriter {
     state = state.endBlock();
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
+
+    CBFM.predicted_element_count_ = currentRecordCount;
+    CBFM cbfm = new CBFM();
+    for(byte[][] row : rows){
+      ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
+      cbfm.insert(insertIndexes);
+    }
+
     blocks.add(currentBlock);
     currentBlock = null;
   }
