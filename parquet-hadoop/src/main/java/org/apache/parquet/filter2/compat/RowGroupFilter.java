@@ -27,6 +27,7 @@ import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
 import org.apache.parquet.filter2.dictionarylevel.DictionaryFilter;
 import org.apache.parquet.filter2.predicate.FilterPredicate;
+import org.apache.parquet.filter2.predicate.Operators;
 import org.apache.parquet.filter2.predicate.SchemaCompatibilityValidator;
 import org.apache.parquet.filter2.statisticslevel.StatisticsFilter;
 import org.apache.parquet.hadoop.ParquetFileReader;
@@ -49,6 +50,11 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
   public enum FilterLevel {
     STATISTICS,
     DICTIONARY
+  }
+
+  public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
+//    FilterPredicate filterPredicate = (FilterPredicate) filter;
+    return null;
   }
 
   public static List<BlockMetaData> filterRowGroups(Filter filter, List<BlockMetaData> blocks, MessageType schema) {
