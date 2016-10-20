@@ -18,10 +18,12 @@
  */
 package org.apache.parquet.filter2.compat;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import me.yongshang.CBFM.CBFM;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
@@ -52,9 +54,46 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
     DICTIONARY
   }
 
+  // TODO test the shit out of this
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
-//    FilterPredicate filterPredicate = (FilterPredicate) filter;
+    if(filter instanceof FilterCompat.FilterPredicateCompat){
+      // only deal with FilterPredicateCompat
+      FilterCompat.FilterPredicateCompat filterPredicateCompat = (FilterCompat.FilterPredicateCompat) filter;
+      FilterPredicate filterPredicate = filterPredicateCompat.getFilterPredicate();
+      List<Operators.Eq> eqFilters = new ArrayList<>();
+      extractEqFilter(filterPredicate, eqFilters);
+      byte[][] indexedColumnBytes = new byte[CBFM.dimension][];
+      for(Operators.Eq eqFilter : eqFilters){
+        String[] columnPath = eqFilter.getColumn().getColumnPath().toArray();
+        String columnName = columnPath[columnPath.length-1];
+        for(int i = 0; i < CBFM.dimension; ++i){
+          if(CBFM.indexedColumns[i].equals(columnName)){
+            Comparable value = eqFilter.getValue();
+            if(value instanceof String){
+              indexedColumnBytes[i] = ((String) value).getBytes();
+            }else if(value instanceof  Integer){
+              ByteBuffer.allocate(4).putInt((Integer) value).array();
+            }else if(value instanceof  Double){
+              ByteBuffer.allocate(8).putDouble((Double)value).array();
+            }
+          }
+        }
+      }
+      for (BlockMetaData block : blocks) {
+        // TODO get CBFM
+      }
+    }
     return null;
+  }
+
+  private static void extractEqFilter(FilterPredicate filterPredicate, List<Operators.Eq> list){
+    if(filterPredicate instanceof Operators.And){
+      Operators.And andFilter = (Operators.And) filterPredicate;
+      extractEqFilter(andFilter.getLeft(), list);
+      extractEqFilter(andFilter.getRight(), list);
+    }else if(filterPredicate instanceof Operators.Eq){
+      list.add((Operators.Eq)filterPredicate);
+    }
   }
 
   public static List<BlockMetaData> filterRowGroups(Filter filter, List<BlockMetaData> blocks, MessageType schema) {
