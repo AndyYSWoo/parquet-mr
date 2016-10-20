@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import me.yongshang.cbfm.CBFM;
 import org.junit.Test;
 
 import org.apache.parquet.column.statistics.IntStatistics;
@@ -97,6 +98,23 @@ public class TestRowGroupFilter {
 
     filtered = RowGroupFilter.filterRowGroups(FilterCompat.get(eq(foo, 0)), blocks, schema);
     assertEquals(Arrays.asList(b6), filtered);
+  }
+
+  @Test
+  public void testCBFMRowGroupFilter(){
+    List<BlockMetaData> blocks = new ArrayList<>();
+    BlockMetaData b1 = new BlockMetaData();
+
+    CBFM.predicted_element_count_ = 100;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"a"});
+
+    MessageType schema = MessageTypeParser.parseMessageType("message Document { required int32 foo; }");
+    IntColumn foo = intColumn("foo");
+
+    CBFM cbfm1 = new CBFM();
+//    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{{}}));
+
   }
 
 }
