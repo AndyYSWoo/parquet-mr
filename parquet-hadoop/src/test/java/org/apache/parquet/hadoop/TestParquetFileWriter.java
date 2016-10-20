@@ -19,6 +19,7 @@
 package org.apache.parquet.hadoop;
 
 
+import me.yongshang.cbfm.CBFM;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -134,6 +135,8 @@ public class TestParquetFileWriter {
 
   @Test
   public void testWriteRead() throws Exception {
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.indexedColumns = new String[]{"b","d"};
     File testFile = temp.newFile();
     testFile.delete();
 
