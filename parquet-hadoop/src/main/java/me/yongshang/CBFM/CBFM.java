@@ -1,4 +1,4 @@
-package me.yongshang.CBFM;
+package me.yongshang.cbfm;
 
 import java.util.ArrayList;
 import java.util.Random;

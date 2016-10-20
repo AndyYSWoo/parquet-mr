@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import me.yongshang.CBFM.CBFM;
+import me.yongshang.cbfm.CBFM;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
@@ -56,6 +56,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   // TODO test the shit out of this
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
+    List<BlockMetaData> cadidateBlocks = new ArrayList<>();
     if(filter instanceof FilterCompat.FilterPredicateCompat){
       // only deal with FilterPredicateCompat
       FilterCompat.FilterPredicateCompat filterPredicateCompat = (FilterCompat.FilterPredicateCompat) filter;
@@ -80,10 +81,14 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         }
       }
       for (BlockMetaData block : blocks) {
-        // TODO get CBFM
+        CBFM cbfm = new CBFM(block.getIndexTable());
+        ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
+          if(cbfm.contains(searchIndex)){
+            cadidateBlocks.add(block);
+          }
       }
     }
-    return null;
+    return cadidateBlocks;
   }
 
   private static void extractEqFilter(FilterPredicate filterPredicate, List<Operators.Eq> list){

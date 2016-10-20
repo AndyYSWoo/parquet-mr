@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import me.yongshang.CBFM.CBFM;
+import me.yongshang.cbfm.CBFM;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -509,6 +509,7 @@ public class ParquetFileWriter {
       ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
       cbfm.insert(insertIndexes);
     }
+    currentBlock.setIndexTable(cbfm.getTable());
 
     blocks.add(currentBlock);
     currentBlock = null;

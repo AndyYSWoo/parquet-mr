@@ -1,11 +1,6 @@
 package org.apache.parquet.hadoop;
 
-import me.yongshang.CBFM.CBFM;
-import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.MessageTypeParser;
-
-import java.util.Arrays;
+import me.yongshang.cbfm.CBFM;
 
 /**
  * Created by Yongshang Wu on 2016/10/18.

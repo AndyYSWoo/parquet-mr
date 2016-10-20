@@ -35,6 +35,7 @@ public class BlockMetaData {
   private long rowCount;
   private long totalByteSize;
   private String path;
+  private long[] indexTable;
 
   public BlockMetaData() {
   }
@@ -119,5 +120,13 @@ public class BlockMetaData {
       totalSize += col.getTotalSize();
     }
     return totalSize;
+  }
+
+  public long[] getIndexTable() {
+    return indexTable;
+  }
+
+  public void setIndexTable(long[] indexTable) {
+    this.indexTable = indexTable;
   }
 }
