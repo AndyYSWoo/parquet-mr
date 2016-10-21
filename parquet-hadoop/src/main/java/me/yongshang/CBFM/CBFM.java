@@ -105,7 +105,7 @@ public class CBFM{
 	private int longLen;			// 总位数组大小[long]
 	private long[] bit_table_;		// 位数组，一维long
 	
-	private void debugPrint(String str){
+	private static void debugPrint(String str){
 		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+str);
 	}
 	
@@ -623,10 +623,19 @@ public class CBFM{
 	}
 
 	public String compressTable(){
+		return compressFromTable(this.bit_table_);
+	}
+
+	/**
+	 * 将long数组转化为字符串表示, 格式为 len,[index:value]+
+	 * @param table
+	 * @return
+     */
+	public static String compressFromTable(long[] table){
 		StringBuilder sb = new StringBuilder();
-		sb.append(bit_table_.length+",");
-		for (int i = 0; i < bit_table_.length; i++) {
-			if(bit_table_[i] != 0) sb.append(i+":"+bit_table_[i]+",");
+		sb.append(table.length+",");
+		for (int i = 0; i < table.length; i++) {
+			if(table[i] != 0) sb.append(i+":"+table[i]+",");
 		}
 		String compressedStr = sb.toString();
 		debugPrint("compressed table: "+compressedStr);

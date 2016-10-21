@@ -509,7 +509,7 @@ public class ParquetFileWriter {
       ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
       cbfm.insert(insertIndexes);
     }
-    currentBlock.setIndexTable(cbfm.getTable());
+    currentBlock.setIndexTableStr(cbfm.compressTable());
     blocks.add(currentBlock);
     currentBlock = null;
   }
@@ -662,6 +662,10 @@ public class ParquetFileWriter {
   public void end(Map<String, String> extraMetaData) throws IOException {
     state = state.end();
     if (DEBUG) LOG.debug(out.getPos() + ": end");
+    // store table as String
+    for (BlockMetaData block : blocks) {
+      extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
+    }
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);
     out.close();

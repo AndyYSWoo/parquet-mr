@@ -115,7 +115,7 @@ public class TestRowGroupFilter {
 
     CBFM cbfm1 = new CBFM();
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{{}}));
-
+    
   }
 
 }

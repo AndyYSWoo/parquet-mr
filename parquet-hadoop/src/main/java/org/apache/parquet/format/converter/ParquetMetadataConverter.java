@@ -657,6 +657,10 @@ public class ParquetMetadataConverter {
     if (Log.DEBUG) LOG.debug(fileMetaData);
     ParquetMetadata parquetMetadata = fromParquetMetadata(fileMetaData);
     if (Log.DEBUG) LOG.debug(ParquetMetadata.toPrettyJSON(parquetMetadata));
+    Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
+    for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+      blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
+    }
     return parquetMetadata;
   }
 

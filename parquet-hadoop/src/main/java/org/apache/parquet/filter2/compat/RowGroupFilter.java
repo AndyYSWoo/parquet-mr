@@ -81,7 +81,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         }
       }
       for (BlockMetaData block : blocks) {
-        CBFM cbfm = new CBFM(block.getIndexTable());
+        CBFM cbfm = new CBFM(block.getIndexTableStr());
         ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
           if(cbfm.contains(searchIndex)){
             cadidateBlocks.add(block);

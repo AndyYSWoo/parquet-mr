@@ -35,7 +35,7 @@ public class BlockMetaData {
   private long rowCount;
   private long totalByteSize;
   private String path;
-  private long[] indexTable;
+  private String indexTableStr;
 
   public BlockMetaData() {
   }
@@ -122,11 +122,11 @@ public class BlockMetaData {
     return totalSize;
   }
 
-  public long[] getIndexTable() {
-    return indexTable;
+  public String getIndexTableStr() {
+    return indexTableStr;
   }
 
-  public void setIndexTable(long[] indexTable) {
-    this.indexTable = indexTable;
+  public void setIndexTableStr(String indexTable) {
+    this.indexTableStr = indexTable;
   }
 }

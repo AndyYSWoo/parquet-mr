@@ -179,6 +179,10 @@ public class TestParquetFileWriter {
       PageReadStore pages = r.readNextRowGroup();
       assertEquals(3, pages.getRowCount());
       validateContains(SCHEMA, pages, PATH1, 1, BytesInput.from(BYTES1));
+      BlockMetaData b1 = readFooter.getBlocks().get(0);
+      assertNotNull(b1.getIndexTableStr());// test cbfm table str restore success
+      CBFM cbfm = new CBFM(b1.getIndexTableStr());
+      assertTrue(cbfm.contains(cbfm.calculateIdxsForSearch(new byte[][]{BYTES1,BYTES2})));// test cbfm funtionality
       assertNull(r.readNextRowGroup());
     }
   }
