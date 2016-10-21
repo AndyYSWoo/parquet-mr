@@ -134,9 +134,59 @@ public class TestParquetFileWriter {
   }
 
   @Test
+  public void testWriteReadWithCBFM() throws Exception{
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"b","d"});
+    File testFile = temp.newFile();
+    testFile.delete();
+
+    Path path = new Path(testFile.toURI());
+    Configuration configuration = new Configuration();
+
+    ParquetFileWriter w = new ParquetFileWriter(configuration, SCHEMA, path);
+    w.start();
+    w.startBlock(3);
+    w.startColumn(C1, 3, CODEC);
+    long c1Starts = w.getPos();
+    w.writeDataPage(1, 4, BytesInput.from(BYTES1), STATS1, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.writeDataPage(1, 4, BytesInput.from(BYTES1), STATS1, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.writeDataPage(1, 4, BytesInput.from(BYTES1), STATS1, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.endColumn();
+    long c1Ends = w.getPos();
+    w.startColumn(C2, 3, CODEC);
+    long c2Starts = w.getPos();
+    w.writeDataPage(1, 4, BytesInput.from(BYTES2), STATS2, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.writeDataPage(1, 4, BytesInput.from(BYTES2), STATS2, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.writeDataPage(1, 4, BytesInput.from(BYTES2), STATS2, BIT_PACKED, BIT_PACKED, PLAIN);
+    w.endColumn();
+    long c2Ends = w.getPos();
+    w.endBlock();
+    w.end(new HashMap<String, String>());
+
+    ParquetMetadata readFooter = ParquetFileReader.readFooter(configuration, path);
+    assertEquals("footer: "+ readFooter, 1, readFooter.getBlocks().size());
+    assertEquals(c1Ends - c1Starts, readFooter.getBlocks().get(0).getColumns().get(0).getTotalSize());
+    assertEquals(c2Ends - c2Starts, readFooter.getBlocks().get(0).getColumns().get(1).getTotalSize());
+    assertEquals(c2Ends - c1Starts, readFooter.getBlocks().get(0).getTotalByteSize());
+    HashSet<Encoding> expectedEncoding=new HashSet<Encoding>();
+    expectedEncoding.add(PLAIN);
+    expectedEncoding.add(BIT_PACKED);
+    assertEquals(expectedEncoding,readFooter.getBlocks().get(0).getColumns().get(0).getEncodings());
+
+    { // read first block of col #1
+      ParquetFileReader r = new ParquetFileReader(configuration, readFooter.getFileMetaData(), path,
+              Arrays.asList(readFooter.getBlocks().get(0)), Arrays.asList(SCHEMA.getColumnDescription(PATH1)));
+      PageReadStore pages = r.readNextRowGroup();
+      assertEquals(3, pages.getRowCount());
+      validateContains(SCHEMA, pages, PATH1, 1, BytesInput.from(BYTES1));
+      assertNull(r.readNextRowGroup());
+    }
+  }
+
+  @Test
   public void testWriteRead() throws Exception {
     CBFM.desired_false_positive_probability_ = 0.1;
-    CBFM.indexedColumns = new String[]{"b","d"};
+    CBFM.setIndexedDimensions(new String[]{"b","d"});
     File testFile = temp.newFile();
     testFile.delete();
 

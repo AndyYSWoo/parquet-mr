@@ -1,6 +1,7 @@
 package me.yongshang.cbfm;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 
@@ -105,17 +106,22 @@ public class CBFM{
 	private long[] bit_table_;		// 位数组，一维long
 	
 	private void debugPrint(String str){
-		if(CBFM.DEBUG) System.out.println(str);
+		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+str);
 	}
 	
 	public CBFM(){
 		initParams();
 		bloom_filter_generate_unique_salt();
 		generateTable();
+		displayParams();
+	}
+
+	private void displayParams(){
 		debugPrint("k: "+salt_count_);
 		debugPrint("m: "+table_size_);
 		debugPrint("size: "+bit_table_.length * 64.0 / (1024*1024)+"M");
 	}
+
 	/**
 	 * Initialize with stored table
 	 * @param table
@@ -123,7 +129,25 @@ public class CBFM{
 	public CBFM(long[] table){
 		this.bit_table_ = table;
 	}
-	
+
+	public CBFM(String compressedString){
+		initFromString(compressedString);
+		initParams();// TODO recalc or store?
+		bloom_filter_generate_unique_salt();
+		displayParams();
+	}
+
+	private void initFromString(String str){
+		String[] tokens = str.split(",");
+		longLen = Integer.valueOf(tokens[0]);
+		bit_table_ = new long[longLen];
+		for(int i = 1; i <= longLen && i<tokens.length; ++i){
+			int separateIndex = tokens[i].indexOf(":");
+			bit_table_[Integer.valueOf(tokens[i].substring(0,separateIndex))] =
+					Long.valueOf(tokens[i].substring(separateIndex+1));
+		}
+	}
+
 	public CBFM(long predicted_element_count, double desired_false_positive_probability, int dimension, int[] reducedimensions)
 	{
 		predicted_element_count_ = predicted_element_count;
@@ -252,6 +276,13 @@ public class CBFM{
 	
 	//计算插入元素对应需要置的位：位的个数 = 维度之间的组合个数 * k
 	public ArrayList<Long> calculateIdxsForInsert(byte[][] keys) {
+		if(DEBUG){
+			System.out.print("[CBFM]\tcalc insert for element: ");
+			for (byte[] key : keys) {
+				System.out.print(Arrays.toString(key)+", ");
+			}
+			System.out.println();
+		}
 		ArrayList<Long> ret = new ArrayList<Long>();
 		//计算每个字段在自己所在维度上的位序号
 		long[][] totalIdx = new long[salt_count_][dimension];
@@ -589,5 +620,16 @@ public class CBFM{
 
 	public long[] getTable(){
 		return bit_table_;
+	}
+
+	public String compressTable(){
+		StringBuilder sb = new StringBuilder();
+		sb.append(bit_table_.length+",");
+		for (int i = 0; i < bit_table_.length; i++) {
+			if(bit_table_[i] != 0) sb.append(i+":"+bit_table_[i]+",");
+		}
+		String compressedStr = sb.toString();
+		debugPrint("compressed table: "+compressedStr);
+		return compressedStr;
 	}
 }

@@ -102,18 +102,19 @@ public class TestRowGroupFilter {
 
   @Test
   public void testCBFMRowGroupFilter(){
-    List<BlockMetaData> blocks = new ArrayList<>();
-    BlockMetaData b1 = new BlockMetaData();
-
     CBFM.predicted_element_count_ = 100;
     CBFM.desired_false_positive_probability_ = 0.1;
-    CBFM.setIndexedDimensions(new String[]{"a"});
+    CBFM.setIndexedDimensions(new String[]{"foo"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
 
     MessageType schema = MessageTypeParser.parseMessageType("message Document { required int32 foo; }");
     IntColumn foo = intColumn("foo");
 
     CBFM cbfm1 = new CBFM();
-//    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{{}}));
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{{}}));
 
   }
 

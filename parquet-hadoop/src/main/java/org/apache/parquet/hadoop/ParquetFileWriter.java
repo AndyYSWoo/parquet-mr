@@ -510,7 +510,6 @@ public class ParquetFileWriter {
       cbfm.insert(insertIndexes);
     }
     currentBlock.setIndexTable(cbfm.getTable());
-
     blocks.add(currentBlock);
     currentBlock = null;
   }
