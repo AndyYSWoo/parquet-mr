@@ -1,6 +1,7 @@
 package org.apache.parquet.hadoop;
 
 import me.yongshang.cbfm.CBFM;
+import org.apache.parquet.io.api.Binary;
 import org.junit.Test;
 import org.junit.Assert.*;
 
@@ -51,6 +52,10 @@ public class CBFMTest {
         CBFM convertedCBFM = new CBFM(cbfm.compressTable());
         assertArrayEquals(cbfm.getTable(), convertedCBFM.getTable());
         assertTrue(convertedCBFM.contains(convertedCBFM.calculateIdxsForSearch(new byte[][]{"Test".getBytes(), "The".getBytes(), "Shit".getBytes()})));
+    }
+    @Test
+    public void testBinary(){
+        assertArrayEquals(Binary.fromString("Test").getBytes(), "Test".getBytes());
     }
 
 }

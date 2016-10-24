@@ -18,11 +18,14 @@
  */
 package org.apache.parquet.filter2.compat;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import me.yongshang.cbfm.CBFM;
+import org.apache.parquet.filter2.predicate.Operators;
+import org.apache.parquet.io.api.Binary;
 import org.junit.Test;
 
 import org.apache.parquet.column.statistics.IntStatistics;
@@ -31,11 +34,10 @@ import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.MessageTypeParser;
 
+import static org.apache.parquet.filter2.predicate.FilterApi.*;
 import static org.junit.Assert.assertEquals;
-import static org.apache.parquet.filter2.predicate.FilterApi.eq;
-import static org.apache.parquet.filter2.predicate.FilterApi.intColumn;
-import static org.apache.parquet.filter2.predicate.FilterApi.notEq;
 import static org.apache.parquet.hadoop.TestInputFormat.makeBlockFromStats;
+import static org.junit.Assert.assertTrue;
 
 public class TestRowGroupFilter {
   @Test
@@ -101,21 +103,191 @@ public class TestRowGroupFilter {
   }
 
   @Test
-  public void testCBFMRowGroupFilter(){
-    CBFM.predicted_element_count_ = 100;
+  public void testCBFMRowGroupFilterForString(){
+    MessageType schema = MessageTypeParser.parseMessageType("message tbl { required binary a (UTF8); }");
+    Operators.BinaryColumn a = binaryColumn("a");
+
+    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
-    CBFM.setIndexedDimensions(new String[]{"foo"});
+    CBFM.setIndexedDimensions(new String[]{"a"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-
-    MessageType schema = MessageTypeParser.parseMessageType("message Document { required int32 foo; }");
-    IntColumn foo = intColumn("foo");
-
     CBFM cbfm1 = new CBFM();
-    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{{}}));
-    
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{"Test".getBytes()}));
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(eq(a, Binary.fromString("Test"))),
+            blocks, schema);
+    assertEquals(1, filtered.size());
   }
 
+  @Test
+  public void testCBFMRGFForInt(){
+    MessageType schema = MessageTypeParser.parseMessageType("message tbl { required int32 b; }");
+    IntColumn b = intColumn("b");
+
+    CBFM.predicted_element_count_ = 10;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"b"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(4).putInt(17).array()}));
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(eq(b, 17)),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
+
+  @Test
+  public void testCBFMRGFForLong(){
+    MessageType schema = MessageTypeParser.parseMessageType("message tbl { required int64 c; }");
+    Operators.LongColumn c = longColumn("c");
+
+    CBFM.predicted_element_count_ = 10;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"c"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(8).putLong(17).array()}));
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(eq(c, (long)17)),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
+
+  @Test
+  public void testCBFMRGFForDouble(){
+    MessageType schema = MessageTypeParser.parseMessageType("message tbl { required double d; }");
+    Operators.DoubleColumn d = doubleColumn("d");
+
+    CBFM.predicted_element_count_ = 10;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"d"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(8).putDouble(17.7).array()}));
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(eq(d, 17.7)),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
+
+  @Test
+  public void testCBFMRGFForFloat(){
+    MessageType schema = MessageTypeParser.parseMessageType("message tbl { required double e; }");
+    Operators.FloatColumn e = floatColumn("e");
+
+    CBFM.predicted_element_count_ = 10;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"e"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(4).putFloat(17.7f).array()}));
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(eq(e, 17.7f)),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
+
+  @Test
+  public void testCBFMRGFFull(){
+    MessageType schema = MessageTypeParser.parseMessageType(
+              "message tbl { " +
+                      "required binary a (UTF8); " +
+                      "required int32 b; " +
+                      "required double c;" +
+                      "}");
+    Operators.BinaryColumn a = binaryColumn("a");
+    IntColumn b = intColumn("b");
+    Operators.DoubleColumn c = doubleColumn("c");
+
+    CBFM.predicted_element_count_ = 100;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"a","b","c"});
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{
+            "Test".getBytes(),
+            ByteBuffer.allocate(4).putInt(7).array(),
+            ByteBuffer.allocate(8).putDouble(17.7).array()
+    }));
+
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(
+                    and(
+                            eq(a,Binary.fromString("Test")),
+                            and(eq(b,7), eq(c, 17.7)))),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
+
+  @Test
+  public void testCBFMRGFReduced(){
+    MessageType schema = MessageTypeParser.parseMessageType(
+            "message tbl { " +
+                    "required binary a (UTF8); " +
+                    "required int32 b; " +
+                    "required double c;" +
+                    "}");
+    Operators.BinaryColumn a = binaryColumn("a");
+    IntColumn b = intColumn("b");
+    Operators.DoubleColumn c = doubleColumn("c");
+
+    CBFM.predicted_element_count_ = 100;
+    CBFM.desired_false_positive_probability_ = 0.1;
+    CBFM.setIndexedDimensions(new String[]{"a","b","c"});
+    // reduce the combination of b & c
+    CBFM.reducedimensions = new int[]{0x3};
+
+    List<BlockMetaData> blocks = new ArrayList<>();
+
+    BlockMetaData b1 = new BlockMetaData();
+    CBFM cbfm1 = new CBFM();
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{
+            "Test".getBytes(),
+            ByteBuffer.allocate(4).putInt(7).array(),
+            ByteBuffer.allocate(8).putDouble(17.7).array()
+    }));
+
+    b1.setIndexTableStr(cbfm1.compressTable());
+    blocks.add(b1);
+    List<BlockMetaData> filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(
+                    and(eq(a,Binary.fromString("Test")),eq(b,7))),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+    filtered = RowGroupFilter.filterRowGroupsByCBFM(
+            FilterCompat.get(
+                    and(eq(b,7), eq(c,17.7))),
+            blocks, schema);
+    assertEquals(1, filtered.size());
+  }
 }

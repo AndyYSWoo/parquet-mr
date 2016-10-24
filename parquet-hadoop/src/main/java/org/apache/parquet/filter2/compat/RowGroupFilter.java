@@ -34,6 +34,7 @@ import org.apache.parquet.filter2.predicate.SchemaCompatibilityValidator;
 import org.apache.parquet.filter2.statisticslevel.StatisticsFilter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
 
 import static org.apache.parquet.Preconditions.checkNotNull;
@@ -70,12 +71,16 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         for(int i = 0; i < CBFM.dimension; ++i){
           if(CBFM.indexedColumns[i].equals(columnName)){
             Comparable value = eqFilter.getValue();
-            if(value instanceof String){
-              indexedColumnBytes[i] = ((String) value).getBytes();
-            }else if(value instanceof  Integer){
-              ByteBuffer.allocate(4).putInt((Integer) value).array();
-            }else if(value instanceof  Double){
-              ByteBuffer.allocate(8).putDouble((Double)value).array();
+            if(value instanceof Binary){
+              indexedColumnBytes[i] = indexedColumnBytes[i] = ((Binary) value).getBytes();
+            }else if(value instanceof Integer){
+              indexedColumnBytes[i] = ByteBuffer.allocate(4).putInt((Integer) value).array();
+            }else if(value instanceof Long){
+              indexedColumnBytes[i] = ByteBuffer.allocate(8).putLong((Long) value).array();
+            }else if(value instanceof Float){
+              indexedColumnBytes[i] = ByteBuffer.allocate(4).putFloat((Float) value).array();
+            }else if(value instanceof Double){
+              indexedColumnBytes[i] = ByteBuffer.allocate(8).putDouble((Double)value).array();
             }
           }
         }
