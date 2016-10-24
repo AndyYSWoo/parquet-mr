@@ -296,8 +296,9 @@ public class ParquetFileWriter {
 
     currentBlock = new BlockMetaData();
     currentRecordCount = recordCount;
-
-    rows = new byte[(int)recordCount][CBFM.dimension][];
+    if(CBFM.ON) {
+      rows = new byte[(int) recordCount][CBFM.dimension][];
+    }
   }
 
   /**
@@ -323,8 +324,9 @@ public class ParquetFileWriter {
     // need to know what type of stats to initialize to
     // better way to do this?
     currentStatistics = Statistics.getStatsBasedOnType(currentChunkType);
-
-    rowIndex = 0;
+    if(CBFM.ON){
+      rowIndex = 0;
+    }
   }
 
   /**
@@ -408,11 +410,13 @@ public class ParquetFileWriter {
       Encoding dlEncoding,
       Encoding valuesEncoding) throws IOException {
     state = state.write();
-    // TODO seriously test this
-    String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
-    for(int i = 0; i < CBFM.dimension; ++i){
-      if(CBFM.indexedColumns[i].equals(currentColumnName)){
-        rows[rowIndex++][i] = bytes.toByteArray();
+    if(CBFM.ON){
+      // TODO seriously test this
+      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+      for(int i = 0; i < CBFM.dimension; ++i){
+        if(CBFM.indexedColumns[i].equals(currentColumnName)){
+          rows[rowIndex++][i] = bytes.toByteArray();
+        }
       }
     }
 
@@ -502,14 +506,15 @@ public class ParquetFileWriter {
     state = state.endBlock();
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
-
-    CBFM.predicted_element_count_ = currentRecordCount;
-    CBFM cbfm = new CBFM();
-    for(byte[][] row : rows){
-      ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
-      cbfm.insert(insertIndexes);
+    if(CBFM.ON){
+      CBFM.predicted_element_count_ = currentRecordCount;
+      CBFM cbfm = new CBFM();
+      for(byte[][] row : rows){
+        ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
+        cbfm.insert(insertIndexes);
+      }
+      currentBlock.setIndexTableStr(cbfm.compressTable());
     }
-    currentBlock.setIndexTableStr(cbfm.compressTable());
     blocks.add(currentBlock);
     currentBlock = null;
   }
@@ -662,9 +667,11 @@ public class ParquetFileWriter {
   public void end(Map<String, String> extraMetaData) throws IOException {
     state = state.end();
     if (DEBUG) LOG.debug(out.getPos() + ": end");
-    // store table as String
-    for (BlockMetaData block : blocks) {
-      extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
+    if(CBFM.ON){
+      // store table as String
+      for (BlockMetaData block : blocks) {
+        extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
+      }
     }
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);

@@ -2,6 +2,7 @@ package me.yongshang.cbfm;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 
@@ -26,6 +27,7 @@ public class CBFM{
 	public static int dimension;						// 维度数
 	public static String[] indexedColumns;				// 建立索引的列名
 
+	public static boolean ON = false;
 	public static boolean DEBUG = true;
 	
 	// Bit Long conversion
@@ -108,7 +110,18 @@ public class CBFM{
 	private static void debugPrint(String str){
 		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+str);
 	}
-	
+	private static void debugPrintEle(String msg,byte[][] bytes){
+		if(DEBUG){
+			System.out.print("[CBFM]\t"+msg+" calc idx for element: ");
+			for (byte[] key : bytes) {
+				System.out.print(Arrays.toString(key)+", ");
+			}
+			System.out.println();
+		}
+	}
+	private static void debugPrintIdx(String msg,List<Long> idxes){
+		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+msg+" insert indexes: "+idxes);
+	}
 	public CBFM(){
 		initParams();
 		bloom_filter_generate_unique_salt();
@@ -276,13 +289,7 @@ public class CBFM{
 	
 	//计算插入元素对应需要置的位：位的个数 = 维度之间的组合个数 * k
 	public ArrayList<Long> calculateIdxsForInsert(byte[][] keys) {
-		if(DEBUG){
-			System.out.print("[CBFM]\tcalc insert for element: ");
-			for (byte[] key : keys) {
-				System.out.print(Arrays.toString(key)+", ");
-			}
-			System.out.println();
-		}
+		debugPrintEle("INSERT", keys);
 		ArrayList<Long> ret = new ArrayList<Long>();
 		//计算每个字段在自己所在维度上的位序号
 		long[][] totalIdx = new long[salt_count_][dimension];
@@ -308,6 +315,7 @@ public class CBFM{
 
 	//计算插入元素对应需要置的位：位的个数 与查询字段与是否有删减维度组合有关（若包含删减维度组合，则拆解组合，递归）
 	public ArrayList<Long> calculateIdxsForSearch(byte[][] keys) {
+		debugPrintEle("SEARCH",keys);
 		ArrayList<Long> ret = new ArrayList<Long>();
 		//计算每个字段在自己所在维度上的位序号
 		long[][] totalIdx = new long[salt_count_][dimension];
@@ -339,6 +347,7 @@ public class CBFM{
 		for (long[] ls : totalIdx) {
 			calculateCombineForSearch(ret, ls, searchDcombine, 0);
 		}
+		debugPrintIdx("SEARCH", ret);
 		return ret;
 	}
 	

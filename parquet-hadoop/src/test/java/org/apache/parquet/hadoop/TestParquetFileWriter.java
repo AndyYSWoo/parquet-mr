@@ -135,6 +135,7 @@ public class TestParquetFileWriter {
 
   @Test
   public void testWriteReadWithCBFM() throws Exception{
+    CBFM.ON = true;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"b","d"});
     File testFile = temp.newFile();

@@ -36,6 +36,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import me.yongshang.cbfm.CBFM;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
 import org.apache.parquet.format.PageEncodingStats;
@@ -657,9 +658,11 @@ public class ParquetMetadataConverter {
     if (Log.DEBUG) LOG.debug(fileMetaData);
     ParquetMetadata parquetMetadata = fromParquetMetadata(fileMetaData);
     if (Log.DEBUG) LOG.debug(ParquetMetadata.toPrettyJSON(parquetMetadata));
-    Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
-    for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
-      blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
+    if(CBFM.ON){
+      Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
+      for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+        blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
+      }
     }
     return parquetMetadata;
   }

@@ -26,6 +26,7 @@ import java.util.List;
 import me.yongshang.cbfm.CBFM;
 import org.apache.parquet.filter2.predicate.Operators;
 import org.apache.parquet.io.api.Binary;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.parquet.column.statistics.IntStatistics;
@@ -40,6 +41,7 @@ import static org.apache.parquet.hadoop.TestInputFormat.makeBlockFromStats;
 import static org.junit.Assert.assertTrue;
 
 public class TestRowGroupFilter {
+
   @Test
   public void testApplyRowGroupFilters() {
 
@@ -265,7 +267,7 @@ public class TestRowGroupFilter {
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"a","b","c"});
     // reduce the combination of b & c
-    CBFM.reducedimensions = new int[]{0x3};
+    CBFM.reducedimensions = new int[]{3};
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
@@ -275,6 +277,11 @@ public class TestRowGroupFilter {
             "Test".getBytes(),
             ByteBuffer.allocate(4).putInt(7).array(),
             ByteBuffer.allocate(8).putDouble(17.7).array()
+    }));
+    cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{
+            "Second".getBytes(),
+            ByteBuffer.allocate(4).putInt(77).array(),
+            ByteBuffer.allocate(8).putDouble(12.29).array()
     }));
 
     b1.setIndexTableStr(cbfm1.compressTable());
