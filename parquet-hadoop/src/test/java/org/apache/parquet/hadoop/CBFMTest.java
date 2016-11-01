@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.junit.Assert.*;
 
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -76,4 +77,16 @@ public class CBFMTest {
         assertArrayEquals(Binary.fromString("Test").getBytes(), "Test".getBytes());
     }
 
+    @Test
+    public void testBytes(){
+        System.out.println("name1: "+Arrays.toString("Jack".getBytes()));
+        System.out.println("name2: "+Arrays.toString("Jason".getBytes()));
+
+        System.out.println("age1: "+Arrays.toString(ByteBuffer.allocate(4).putInt(21).array()));
+        System.out.println("age2: "+Arrays.toString(ByteBuffer.allocate(4).putInt(35).array()));
+
+        System.out.println("balance1: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(1000).array()));
+        System.out.println("balance2: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(5000).array()));
+        assertTrue(true);
+    }
 }

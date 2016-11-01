@@ -26,14 +26,8 @@ import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import me.yongshang.cbfm.CBFM;
 import org.apache.hadoop.conf.Configuration;
@@ -458,6 +452,23 @@ public class ParquetFileWriter {
                       Set<Encoding> dlEncodings,
                       List<Encoding> dataEncodings) throws IOException {
     state = state.write();
+    /*
+    if(CBFM.ON){
+      // TODO seriously test this
+      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+      byte[] byteArray = bytes.toByteArray();
+      int singleSize = (int)(uncompressedTotalPageSize / currentRecordCount);
+      for(int i = 0; i < CBFM.dimension; ++i){
+        if(CBFM.indexedColumns[i].equals(currentColumnName)){ // find the corresponding column
+          rowIndex = 0;
+          for(int j = 0; j < currentRecordCount; ++j){        // for every row
+            rows[rowIndex++][i] = Arrays.copyOfRange(byteArray, j*singleSize, (j+1)*singleSize);
+          }
+          break;
+        }
+      }
+    }
+    */
     if (DEBUG) LOG.debug(out.getPos() + ": write data pages");
     long headersSize = bytes.size() - compressedTotalPageSize;
     this.uncompressedLength += uncompressedTotalPageSize + headersSize;
