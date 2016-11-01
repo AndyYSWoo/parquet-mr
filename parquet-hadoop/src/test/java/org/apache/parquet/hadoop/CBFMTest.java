@@ -85,6 +85,10 @@ public class CBFMTest {
         System.out.println("name2: "+Arrays.toString("Jason".getBytes()));
         System.out.println("name3: "+Arrays.toString("James".getBytes()));
         System.out.println("name4: "+Arrays.toString("Someone".getBytes()));
+        System.out.println("name5: "+Arrays.toString("Customer#000000003".getBytes()));
+        System.out.println("name6: "+Arrays.toString("MG9kdTD2WBHm".getBytes()));
+        System.out.println("name7: "+Arrays.toString("11-719-748-3364".getBytes()));
+        System.out.println("name8: "+Arrays.toString(" deposits eat slyly ironic, even instructions. express foxes detect slyly. blithely even accounts abov".getBytes()));
 
         System.out.println("age1: "+Arrays.toString(ByteBuffer.allocate(4).putInt(21).array()));
         byte[] age1 = ByteBuffer.allocate(4).putInt(21).array();
@@ -101,7 +105,7 @@ public class CBFMTest {
         System.out.println("balance2: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(5000).array()));
         System.out.println("balance3: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(2000).array()));
         System.out.println("balance4: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(3000).array()));
-        assertTrue(true);
+
 
     }
 }
