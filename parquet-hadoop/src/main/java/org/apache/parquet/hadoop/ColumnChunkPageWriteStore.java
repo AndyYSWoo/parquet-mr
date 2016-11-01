@@ -25,6 +25,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
+import me.yongshang.cbfm.CBFM;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.bytes.ConcatenatingByteArrayCollector;
@@ -117,9 +119,11 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       // by concatenating before collecting instead of collecting twice,
       // we only allocate one buffer to copy into instead of multiple.
       buf.collect(BytesInput.concat(BytesInput.from(tempOutputStream), compressedBytes));
-      System.out.println("==========Bytes uncompressed: "+Arrays.toString(bytes.toByteArray()));
-      System.out.println("==========Bytes compressed: "+Arrays.toString(compressedBytes.toByteArray()));
-      System.out.println("==========Buf after collect "+Arrays.toString(this.buf.toByteArray()));
+      if(CBFM.DEBUG) {
+        System.out.println("==========Bytes uncompressed: " + Arrays.toString(bytes.toByteArray()));
+        System.out.println("==========Bytes compressed: " + Arrays.toString(compressedBytes.toByteArray()));
+        System.out.println("==========Buf after collect: " + Arrays.toString(this.buf.toByteArray()));
+      }
       rlEncodings.add(rlEncoding);
       dlEncodings.add(dlEncoding);
       dataEncodings.add(valuesEncoding);

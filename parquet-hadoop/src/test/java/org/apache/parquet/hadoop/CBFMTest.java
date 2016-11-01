@@ -81,12 +81,18 @@ public class CBFMTest {
     public void testBytes(){
         System.out.println("name1: "+Arrays.toString("Jack".getBytes()));
         System.out.println("name2: "+Arrays.toString("Jason".getBytes()));
+        System.out.println("name3: "+Arrays.toString("James".getBytes()));
+        System.out.println("name4: "+Arrays.toString("Someone".getBytes()));
 
         System.out.println("age1: "+Arrays.toString(ByteBuffer.allocate(4).putInt(21).array()));
         System.out.println("age2: "+Arrays.toString(ByteBuffer.allocate(4).putInt(35).array()));
+        System.out.println("age3: "+Arrays.toString(ByteBuffer.allocate(4).putInt(40).array()));
+        System.out.println("age4: "+Arrays.toString(ByteBuffer.allocate(4).putInt(35).array()));
 
         System.out.println("balance1: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(1000).array()));
         System.out.println("balance2: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(5000).array()));
+        System.out.println("balance3: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(2000).array()));
+        System.out.println("balance4: "+Arrays.toString(ByteBuffer.allocate(8).putDouble(3000).array()));
         assertTrue(true);
     }
 }

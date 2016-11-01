@@ -1,4 +1,4 @@
-/* 
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -193,9 +193,9 @@ public class ParquetFileWriter {
    * @throws IOException if the file can not be created
    */
   public ParquetFileWriter(Configuration configuration, MessageType schema,
-      Path file) throws IOException {
+                           Path file) throws IOException {
     this(configuration, schema, file, Mode.CREATE, DEFAULT_BLOCK_SIZE,
-        MAX_PADDING_SIZE_DEFAULT);
+            MAX_PADDING_SIZE_DEFAULT);
   }
 
   /**
@@ -208,7 +208,7 @@ public class ParquetFileWriter {
   public ParquetFileWriter(Configuration configuration, MessageType schema,
                            Path file, Mode mode) throws IOException {
     this(configuration, schema, file, mode, DEFAULT_BLOCK_SIZE,
-        MAX_PADDING_SIZE_DEFAULT);
+            MAX_PADDING_SIZE_DEFAULT);
   }
 
   /**
@@ -222,7 +222,7 @@ public class ParquetFileWriter {
   public ParquetFileWriter(Configuration configuration, MessageType schema,
                            Path file, Mode mode, long rowGroupSize,
                            int maxPaddingSize)
-      throws IOException {
+          throws IOException {
     TypeUtil.checkValidWriteSchema(schema);
     this.schema = schema;
     FileSystem fs = file.getFileSystem(configuration);
@@ -233,9 +233,9 @@ public class ParquetFileWriter {
       long dfsBlockSize = Math.max(fs.getDefaultBlockSize(file), rowGroupSize);
 
       this.alignment = PaddingAlignment.get(
-          dfsBlockSize, rowGroupSize, maxPaddingSize);
+              dfsBlockSize, rowGroupSize, maxPaddingSize);
       this.out = fs.create(file, overwriteFlag, DFS_BUFFER_SIZE_DEFAULT,
-          fs.getDefaultReplication(file), dfsBlockSize);
+              fs.getDefaultReplication(file), dfsBlockSize);
 
     } else {
       this.alignment = NoAlignment.get(rowGroupSize);
@@ -256,13 +256,13 @@ public class ParquetFileWriter {
    */
   ParquetFileWriter(Configuration configuration, MessageType schema,
                     Path file, long rowAndBlockSize, int maxPaddingSize)
-      throws IOException {
+          throws IOException {
     FileSystem fs = file.getFileSystem(configuration);
     this.schema = schema;
     this.alignment = PaddingAlignment.get(
-        rowAndBlockSize, rowAndBlockSize, maxPaddingSize);
+            rowAndBlockSize, rowAndBlockSize, maxPaddingSize);
     this.out = fs.create(file, true, DFS_BUFFER_SIZE_DEFAULT,
-        fs.getDefaultReplication(file), rowAndBlockSize);
+            fs.getDefaultReplication(file), rowAndBlockSize);
     this.encodingStatsBuilder = new EncodingStats.Builder();
   }
 
@@ -334,11 +334,11 @@ public class ParquetFileWriter {
     int uncompressedSize = dictionaryPage.getUncompressedSize();
     int compressedPageSize = (int)dictionaryPage.getBytes().size(); // TODO: fix casts
     metadataConverter.writeDictionaryPageHeader(
-        uncompressedSize,
-        compressedPageSize,
-        dictionaryPage.getDictionarySize(),
-        dictionaryPage.getEncoding(),
-        out);
+            uncompressedSize,
+            compressedPageSize,
+            dictionaryPage.getDictionarySize(),
+            dictionaryPage.getEncoding(),
+            out);
     long headerSize = out.getPos() - currentChunkDictionaryPageOffset;
     this.uncompressedLength += uncompressedSize + headerSize;
     this.compressedLength += compressedPageSize + headerSize;
@@ -360,22 +360,22 @@ public class ParquetFileWriter {
    */
   @Deprecated
   public void writeDataPage(
-      int valueCount, int uncompressedPageSize,
-      BytesInput bytes,
-      Encoding rlEncoding,
-      Encoding dlEncoding,
-      Encoding valuesEncoding) throws IOException {
+          int valueCount, int uncompressedPageSize,
+          BytesInput bytes,
+          Encoding rlEncoding,
+          Encoding dlEncoding,
+          Encoding valuesEncoding) throws IOException {
     state = state.write();
     long beforeHeader = out.getPos();
     if (DEBUG) LOG.debug(beforeHeader + ": write data page: " + valueCount + " values");
     int compressedPageSize = (int)bytes.size();
     metadataConverter.writeDataPageHeader(
-        uncompressedPageSize, compressedPageSize,
-        valueCount,
-        rlEncoding,
-        dlEncoding,
-        valuesEncoding,
-        out);
+            uncompressedPageSize, compressedPageSize,
+            valueCount,
+            rlEncoding,
+            dlEncoding,
+            valuesEncoding,
+            out);
     long headerSize = out.getPos() - beforeHeader;
     this.uncompressedLength += uncompressedPageSize + headerSize;
     this.compressedLength += compressedPageSize + headerSize;
@@ -397,34 +397,28 @@ public class ParquetFileWriter {
    * @param valuesEncoding encoding of values
    */
   public void writeDataPage(
-      int valueCount, int uncompressedPageSize,
-      BytesInput bytes,
-      Statistics statistics,
-      Encoding rlEncoding,
-      Encoding dlEncoding,
-      Encoding valuesEncoding) throws IOException {
+          int valueCount, int uncompressedPageSize,
+          BytesInput bytes,
+          Statistics statistics,
+          Encoding rlEncoding,
+          Encoding dlEncoding,
+          Encoding valuesEncoding) throws IOException {
     state = state.write();
     if(CBFM.ON){
-      // TODO seriously test this
-      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
-      for(int i = 0; i < CBFM.dimension; ++i){
-        if(CBFM.indexedColumns[i].equals(currentColumnName)){
-          rows[rowIndex++][i] = bytes.toByteArray();
-        }
-      }
+      throw new RuntimeException("USING writeDataPage RATHER THAN writeDataPages, ADAPT TO THIS METHOD");
     }
 
     long beforeHeader = out.getPos();
     if (DEBUG) LOG.debug(beforeHeader + ": write data page: " + valueCount + " values");
     int compressedPageSize = (int)bytes.size();
     metadataConverter.writeDataPageHeader(
-        uncompressedPageSize, compressedPageSize,
-        valueCount,
-        statistics,
-        rlEncoding,
-        dlEncoding,
-        valuesEncoding,
-        out);
+            uncompressedPageSize, compressedPageSize,
+            valueCount,
+            statistics,
+            rlEncoding,
+            dlEncoding,
+            valuesEncoding,
+            out);
     long headerSize = out.getPos() - beforeHeader;
     this.uncompressedLength += uncompressedPageSize + headerSize;
     this.compressedLength += compressedPageSize + headerSize;
@@ -452,28 +446,55 @@ public class ParquetFileWriter {
                       Set<Encoding> dlEncodings,
                       List<Encoding> dataEncodings) throws IOException {
     state = state.write();
-    /*
-    if(CBFM.ON){
-      // TODO seriously test this
-      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
-      byte[] byteArray = bytes.toByteArray();
-      int singleSize = (int)(uncompressedTotalPageSize / currentRecordCount);
-      for(int i = 0; i < CBFM.dimension; ++i){
-        if(CBFM.indexedColumns[i].equals(currentColumnName)){ // find the corresponding column
-          rowIndex = 0;
-          for(int j = 0; j < currentRecordCount; ++j){        // for every row
-            rows[rowIndex++][i] = Arrays.copyOfRange(byteArray, j*singleSize, (j+1)*singleSize);
-          }
-          break;
-        }
-      }
-    }
-    */
     if (DEBUG) LOG.debug(out.getPos() + ": write data pages");
     long headersSize = bytes.size() - compressedTotalPageSize;
     this.uncompressedLength += uncompressedTotalPageSize + headersSize;
     this.compressedLength += compressedTotalPageSize + headersSize;
     if (DEBUG) LOG.debug(out.getPos() + ": write data pages content");
+    if(CBFM.ON){
+      // TODO seriously test this
+      // Decompress content
+      CodecFactory.BytesDecompressor decompressor = new CodecFactory(new Configuration(), 0).createDecompressor(CompressionCodecName.SNAPPY);
+      BytesInput compressedBytes = BytesInput.from(bytes.toByteArray(), (int)headersSize, (int)compressedTotalPageSize);
+      BytesInput uncompressedBytes = decompressor.decompress(compressedBytes, (int)uncompressedTotalPageSize);
+      byte[] uncompressedByteArray = uncompressedBytes.toByteArray();
+      if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
+      // Find corresponding column
+      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+      for(int i = 0; i < CBFM.dimension; ++i){
+        if(CBFM.indexedColumns[i].equals(currentColumnName)){
+          int stringOffset = 0;
+          String chunkType = "";
+          for(int j = 0; j < currentRecordCount; ++j){        // for every row
+            switch (currentChunkType){
+              case INT32:
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*4, (j+1)*4);
+                chunkType = "int";
+                break;
+              case DOUBLE:
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*8, j*8+8);
+                chunkType = "double";
+                break;
+              case BINARY:
+                if(stringOffset == 0){// ignore first str: 2000 3 15
+                  int placeHolderLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, 0);
+                  stringOffset = 4 + placeHolderLen;
+                }
+                int strLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, stringOffset);
+                stringOffset += 4;
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset+strLen);
+                stringOffset += strLen;
+                chunkType = "string";
+                break;
+            }
+            if(CBFM.DEBUG){
+              System.out.println("==========Value for column "+currentColumnName+":"+chunkType+" row "+j+" is "+Arrays.toString(rows[j][i]));
+            }
+          }
+          break;
+        }
+      }
+    }
     bytes.writeAllTo(out);
     encodingStatsBuilder.addDataEncodings(dataEncodings);
     if (rlEncodings.isEmpty()) {
@@ -493,17 +514,17 @@ public class ParquetFileWriter {
     state = state.endColumn();
     if (DEBUG) LOG.debug(out.getPos() + ": end column");
     currentBlock.addColumn(ColumnChunkMetaData.get(
-        currentChunkPath,
-        currentChunkType,
-        currentChunkCodec,
-        encodingStatsBuilder.build(),
-        currentEncodings,
-        currentStatistics,
-        currentChunkFirstDataPage,
-        currentChunkDictionaryPageOffset,
-        currentChunkValueCount,
-        compressedLength,
-        uncompressedLength));
+            currentChunkPath,
+            currentChunkType,
+            currentChunkCodec,
+            encodingStatsBuilder.build(),
+            currentEncodings,
+            currentStatistics,
+            currentChunkFirstDataPage,
+            currentChunkDictionaryPageOffset,
+            currentChunkValueCount,
+            compressedLength,
+            uncompressedLength));
     this.currentBlock.setTotalByteSize(currentBlock.getTotalByteSize() + uncompressedLength);
     this.uncompressedLength = 0;
     this.compressedLength = 0;
@@ -554,17 +575,17 @@ public class ParquetFileWriter {
   }
 
   public void appendRowGroup(SeekableInputStream from, BlockMetaData rowGroup,
-    boolean dropColumns) throws IOException {
+                             boolean dropColumns) throws IOException {
     startBlock(rowGroup.getRowCount());
 
     Map<String, ColumnChunkMetaData> columnsToCopy =
-        new HashMap<String, ColumnChunkMetaData>();
+            new HashMap<String, ColumnChunkMetaData>();
     for (ColumnChunkMetaData chunk : rowGroup.getColumns()) {
       columnsToCopy.put(chunk.getPath().toDotString(), chunk);
     }
 
     List<ColumnChunkMetaData> columnsInOrder =
-        new ArrayList<ColumnChunkMetaData>();
+            new ArrayList<ColumnChunkMetaData>();
 
     for (ColumnDescriptor descriptor : schema.getColumns()) {
       String path = ColumnPath.get(descriptor.getPath()).toDotString();
@@ -573,15 +594,15 @@ public class ParquetFileWriter {
         columnsInOrder.add(chunk);
       } else {
         throw new IllegalArgumentException(String.format(
-            "Missing column '%s', cannot copy row group: %s", path, rowGroup));
+                "Missing column '%s', cannot copy row group: %s", path, rowGroup));
       }
     }
 
     // complain if some columns would be dropped and that's not okay
     if (!dropColumns && !columnsToCopy.isEmpty()) {
       throw new IllegalArgumentException(String.format(
-          "Columns cannot be copied (missing from target schema): %s",
-          Strings.join(columnsToCopy.keySet(), ", ")));
+              "Columns cannot be copied (missing from target schema): %s",
+              Strings.join(columnsToCopy.keySet(), ", ")));
     }
 
     // copy the data for all chunks
@@ -602,7 +623,7 @@ public class ParquetFileWriter {
       length += chunk.getTotalSize();
 
       if ((i + 1) == columnsInOrder.size() ||
-          columnsInOrder.get(i + 1).getStartingPos() != (start + length)) {
+              columnsInOrder.get(i + 1).getStartingPos() != (start + length)) {
         // not contiguous. do the copy now.
         copy(from, out, start, length);
         // reset to start at the next column chunk
@@ -611,17 +632,17 @@ public class ParquetFileWriter {
       }
 
       currentBlock.addColumn(ColumnChunkMetaData.get(
-          chunk.getPath(),
-          chunk.getType(),
-          chunk.getCodec(),
-          chunk.getEncodingStats(),
-          chunk.getEncodings(),
-          chunk.getStatistics(),
-          newChunkStart,
-          newChunkStart,
-          chunk.getValueCount(),
-          chunk.getTotalSize(),
-          chunk.getTotalUncompressedSize()));
+              chunk.getPath(),
+              chunk.getType(),
+              chunk.getCodec(),
+              chunk.getEncodingStats(),
+              chunk.getEncodings(),
+              chunk.getStatistics(),
+              newChunkStart,
+              newChunkStart,
+              chunk.getValueCount(),
+              chunk.getTotalSize(),
+              chunk.getTotalUncompressedSize()));
 
       blockCompressedSize += chunk.getTotalSize();
     }
@@ -633,12 +654,12 @@ public class ParquetFileWriter {
 
   // Buffers for the copy function.
   private static final ThreadLocal<byte[]> COPY_BUFFER =
-      new ThreadLocal<byte[]>() {
-        @Override
-        protected byte[] initialValue() {
-          return new byte[8192];
-        }
-      };
+          new ThreadLocal<byte[]>() {
+            @Override
+            protected byte[] initialValue() {
+              return new byte[8192];
+            }
+          };
 
   /**
    * Copy from a FS input stream to an output stream. Thread-safe
@@ -652,17 +673,17 @@ public class ParquetFileWriter {
   private static void copy(SeekableInputStream from, FSDataOutputStream to,
                            long start, long length) throws IOException{
     if (DEBUG) LOG.debug(
-        "Copying " + length + " bytes at " + start + " to " + to.getPos());
+            "Copying " + length + " bytes at " + start + " to " + to.getPos());
     from.seek(start);
     long bytesCopied = 0;
     byte[] buffer = COPY_BUFFER.get();
     while (bytesCopied < length) {
       long bytesLeft = length - bytesCopied;
       int bytesRead = from.read(buffer, 0,
-          (buffer.length < bytesLeft ? buffer.length : (int) bytesLeft));
+              (buffer.length < bytesLeft ? buffer.length : (int) bytesLeft));
       if (bytesRead < 0) {
         throw new IllegalArgumentException(
-            "Unexpected end of input file at " + start + bytesCopied);
+                "Unexpected end of input file at " + start + bytesCopied);
       }
       to.write(buffer, 0, bytesRead);
       bytesCopied += bytesRead;
@@ -748,7 +769,7 @@ public class ParquetFileWriter {
    */
   public static void writeMetadataFile(Configuration configuration, Path outputPath, List<Footer> footers, JobSummaryLevel level) throws IOException {
     Preconditions.checkArgument(level == JobSummaryLevel.ALL || level == JobSummaryLevel.COMMON_ONLY,
-        "Unsupported level: " + level);
+            "Unsupported level: " + level);
 
     FileSystem fs = outputPath.getFileSystem(configuration);
     outputPath = outputPath.makeQualified(fs);
@@ -763,13 +784,13 @@ public class ParquetFileWriter {
   }
 
   private static void writeMetadataFile(Path outputPathRoot, ParquetMetadata metadataFooter, FileSystem fs, String parquetMetadataFile)
-      throws IOException {
+          throws IOException {
     Path metaDataPath = new Path(outputPathRoot, parquetMetadataFile);
     writeMetadataFile(metaDataPath, metadataFooter, fs);
   }
 
   private static void writeMetadataFile(Path outputPath, ParquetMetadata metadataFooter, FileSystem fs)
-      throws IOException {
+          throws IOException {
     FSDataOutputStream metadata = fs.create(outputPath);
     metadata.write(MAGIC);
     serializeFooter(metadataFooter, metadata);
@@ -781,7 +802,7 @@ public class ParquetFileWriter {
     GlobalMetaData fileMetaData = null;
     List<BlockMetaData> blocks = new ArrayList<BlockMetaData>();
     for (Footer footer : footers) {
-        String footerPath = footer.getFile().toUri().getPath();
+      String footerPath = footer.getFile().toUri().getPath();
       if (!footerPath.startsWith(rootPath)) {
         throw new ParquetEncodingException(footerPath + " invalid: all the files must be contained in the root " + root);
       }
@@ -835,15 +856,15 @@ public class ParquetFileWriter {
    * @return the result of the merge
    */
   static GlobalMetaData mergeInto(
-      FileMetaData toMerge,
-      GlobalMetaData mergedMetadata) {
+          FileMetaData toMerge,
+          GlobalMetaData mergedMetadata) {
     return mergeInto(toMerge, mergedMetadata, true);
   }
 
   static GlobalMetaData mergeInto(
-      FileMetaData toMerge,
-      GlobalMetaData mergedMetadata,
-      boolean strict) {
+          FileMetaData toMerge,
+          GlobalMetaData mergedMetadata,
+          boolean strict) {
     MessageType schema = null;
     Map<String, Set<String>> newKeyValues = new HashMap<String, Set<String>>();
     Set<String> createdBy = new HashSet<String>();
@@ -853,7 +874,7 @@ public class ParquetFileWriter {
       createdBy.addAll(mergedMetadata.getCreatedBy());
     }
     if ((schema == null && toMerge.getSchema() != null)
-        || (schema != null && !schema.equals(toMerge.getSchema()))) {
+            || (schema != null && !schema.equals(toMerge.getSchema()))) {
       schema = mergeInto(toMerge.getSchema(), schema, strict);
     }
     for (Entry<String, String> entry : toMerge.getKeyValueMetaData().entrySet()) {
@@ -866,9 +887,9 @@ public class ParquetFileWriter {
     }
     createdBy.add(toMerge.getCreatedBy());
     return new GlobalMetaData(
-        schema,
-        newKeyValues,
-        createdBy);
+            schema,
+            newKeyValues,
+            createdBy);
   }
 
   /**
@@ -952,8 +973,8 @@ public class ParquetFileWriter {
 
       if (isPaddingNeeded(remaining)) {
         if (DEBUG) LOG.debug("Adding " + remaining + " bytes of padding (" +
-            "row group size=" + rowGroupSize + "B, " +
-            "block size=" + dfsBlockSize + "B)");
+                "row group size=" + rowGroupSize + "B, " +
+                "block size=" + dfsBlockSize + "B)");
         for (; remaining > 0; remaining -= zeros.length) {
           out.write(zeros, 0, (int) Math.min((long) zeros.length, remaining));
         }
