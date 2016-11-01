@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import me.yongshang.cbfm.CBFM;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
@@ -75,12 +76,16 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
               indexedColumnBytes[i] = indexedColumnBytes[i] = ((Binary) value).getBytes();
             }else if(value instanceof Integer){
               indexedColumnBytes[i] = ByteBuffer.allocate(4).putInt((Integer) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[i]);
             }else if(value instanceof Long){
               indexedColumnBytes[i] = ByteBuffer.allocate(8).putLong((Long) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[i]);
             }else if(value instanceof Float){
               indexedColumnBytes[i] = ByteBuffer.allocate(4).putFloat((Float) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[i]);
             }else if(value instanceof Double){
               indexedColumnBytes[i] = ByteBuffer.allocate(8).putDouble((Double)value).array();
+              ArrayUtils.reverse(indexedColumnBytes[i]);
             }
           }
         }
@@ -89,6 +94,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         CBFM cbfm = new CBFM(block.getIndexTableStr());
         ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
           if(cbfm.contains(searchIndex)){
+            if(CBFM.DEBUG) System.out.println("==========CBFM block hit");
             cadidateBlocks.add(block);
           }
       }
