@@ -47,6 +47,7 @@ import org.apache.parquet.column.Encoding;
 import org.apache.parquet.column.EncodingStats;
 import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.statistics.Statistics;
+import org.apache.parquet.column.values.dictionary.DictionaryValuesReader;
 import org.apache.parquet.hadoop.ParquetOutputFormat.JobSummaryLevel;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -133,6 +134,8 @@ public class ParquetFileWriter {
   private long currentChunkFirstDataPage;         // set in startColumn (out.pos())
   private long currentChunkDictionaryPageOffset;  // set in writeDictionaryPage
 
+
+  private ColumnDescriptor currentColumnDescriptor;
   /**
    * Captures the order in which methods should be called
    *
@@ -308,6 +311,7 @@ public class ParquetFileWriter {
     state = state.startColumn();
     encodingStatsBuilder.clear();
     currentEncodings = new HashSet<Encoding>();
+    currentColumnDescriptor = descriptor;
     currentChunkPath = ColumnPath.get(descriptor.getPath());
     currentChunkType = descriptor.getType();
     currentChunkCodec = compressionCodecName;
@@ -328,6 +332,7 @@ public class ParquetFileWriter {
    * @param dictionaryPage the dictionary page
    */
   public void writeDictionaryPage(DictionaryPage dictionaryPage) throws IOException {
+    System.out.println("===========DictionaryPage: "+Arrays.toString(dictionaryPage.getBytes().toByteArray()));
     state = state.write();
     if (DEBUG) LOG.debug(out.getPos() + ": write dictionary page: " + dictionaryPage.getDictionarySize() + " values");
     currentChunkDictionaryPageOffset = out.getPos();
@@ -344,6 +349,21 @@ public class ParquetFileWriter {
     this.compressedLength += compressedPageSize + headerSize;
     if (DEBUG) LOG.debug(out.getPos() + ": write dictionary page content " + compressedPageSize);
     dictionaryPage.getBytes().writeAllTo(out);
+    // BELOW IS ALL BULLSHIT
+//    DictionaryValuesReader dicReader = new DictionaryValuesReader(
+//            dictionaryPage.getEncoding()
+//                    .initDictionary(currentColumnDescriptor, dictionaryPage));
+//    dicReader.initFromPage((int)currentRecordCount, dictionaryPage.getBytes().toByteArray(), 0);
+//    for (long i = 0; i < currentRecordCount; i++) {
+//      switch (currentChunkType){
+//        case INT32:
+//          System.out.println("========="+dicReader.readInteger());
+//          break;
+//        case DOUBLE:
+//          System.out.println("========="+dicReader.readDouble());
+//          break;
+//      }
+//    }
     encodingStatsBuilder.addDictEncoding(dictionaryPage.getEncoding());
     currentEncodings.add(dictionaryPage.getEncoding());
   }
@@ -454,11 +474,7 @@ public class ParquetFileWriter {
     if(CBFM.ON){
       // TODO seriously test this
       // Decompress content
-      CodecFactory.BytesDecompressor decompressor = new CodecFactory(new Configuration(), 0).createDecompressor(CompressionCodecName.SNAPPY);
-      BytesInput compressedBytes = BytesInput.from(bytes.toByteArray(), (int)headersSize, (int)compressedTotalPageSize);
-      BytesInput uncompressedBytes = decompressor.decompress(compressedBytes, (int)uncompressedTotalPageSize);
-      byte[] uncompressedByteArray = uncompressedBytes.toByteArray();
-      if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
+      byte[] uncompressedByteArray = decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
       // Find corresponding column
       String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
       for(int i = 0; i < CBFM.dimension; ++i){
@@ -504,6 +520,20 @@ public class ParquetFileWriter {
     currentEncodings.addAll(dlEncodings);
     currentEncodings.addAll(dataEncodings);
     currentStatistics = totalStats;
+  }
+
+  private byte[] decompress(BytesInput compressed,
+                            long headersSize,
+                            long compressedTotalPageSize,
+                            long uncompressedTotalPageSize) throws IOException {
+    CodecFactory.BytesDecompressor decompressor = new CodecFactory(new Configuration(), 0)
+            .createDecompressor(CompressionCodecName.SNAPPY);
+    BytesInput compressedBytes = BytesInput.from(compressed.toByteArray(), (int)headersSize, (int)compressedTotalPageSize);
+    // adding more mem may solve this
+    BytesInput uncompressedBytes = decompressor.decompress(compressedBytes, (int)uncompressedTotalPageSize);
+    byte[] uncompressedByteArray = uncompressedBytes.toByteArray();
+    if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
+    return uncompressedByteArray;
   }
 
   /**
