@@ -569,7 +569,8 @@ public class ParquetFileWriter {
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
     if(CBFM.ON){
-      CBFM.predicted_element_count_ = currentRecordCount;
+//      CBFM.predicted_element_count_ = (long)Math.ceil(currentRecordCount*0.5);// affect correctness?
+      CBFM.predicted_element_count_ = currentRecordCount;// affect correctness?
       CBFM cbfm = new CBFM();
       for(byte[][] row : rows){
         ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
