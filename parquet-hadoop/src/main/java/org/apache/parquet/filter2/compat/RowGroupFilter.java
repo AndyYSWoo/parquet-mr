@@ -18,6 +18,10 @@
  */
 package org.apache.parquet.filter2.compat;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +41,9 @@ import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
+import org.apache.spark.SparkEnv;
+import org.apache.spark.TaskContext;
+import org.apache.spark.deploy.SparkHadoopUtil;
 
 import static org.apache.parquet.Preconditions.checkNotNull;
 
@@ -96,10 +103,22 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
           if(cbfm.contains(searchIndex)){
             hitCount++;
-            System.out.println("==========CBFM block hit");
             cadidateBlocks.add(block);
           }
       }
+      int skippedCount = blocks.size() - hitCount;
+      SparkHadoopUtil.get().conf().setInt("parquet.cbfm.totalblocks."+ TaskContext.get().taskAttemptId(), blocks.size());
+      SparkHadoopUtil.get().conf().setInt("parquet.cbfm.skipblocks."+ TaskContext.get().taskAttemptId(), skippedCount);
+      /*
+      try {
+        PrintWriter pw = new PrintWriter(new FileWriter(new File("/Users/yongshangwu/work/out"), true));
+        pw.write("Task "+TaskContext.get().taskAttemptId()+": total "+blocks.size()+" blocks, "+skippedCount+" blocks skipped.\n");
+        pw.flush();
+        pw.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+      */
       System.out.println("==========total "+blocks.size()+" blocks, "+hitCount+" blocks hit.");
     }
     return cadidateBlocks;
