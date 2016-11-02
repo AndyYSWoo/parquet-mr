@@ -90,14 +90,17 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           }
         }
       }
+      int hitCount = 0;
       for (BlockMetaData block : blocks) {
         CBFM cbfm = new CBFM(block.getIndexTableStr());
         ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
           if(cbfm.contains(searchIndex)){
-            if(CBFM.DEBUG) System.out.println("==========CBFM block hit");
+            hitCount++;
+            System.out.println("==========CBFM block hit");
             cadidateBlocks.add(block);
           }
       }
+      System.out.println("==========total "+blocks.size()+" blocks, "+hitCount+" blocks hit.");
     }
     return cadidateBlocks;
   }
