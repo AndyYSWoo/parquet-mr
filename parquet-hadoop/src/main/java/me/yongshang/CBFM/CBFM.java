@@ -26,15 +26,15 @@ import java.util.Random;
 public class CBFM{
 	// CONFIGs
 	// conf 1: infer through fpp & element count
-	public static long predicted_element_count_ = -1;        		// 期望元素个数
+	private long predicted_element_count_ = -1;        		// 期望元素个数
 	public static double desired_false_positive_probability_ = -1;	// 期望错误率
 	// conf 2: set directly
-	public static long table_size_ = -1;							// 每个维度上位数组大小[bit], m/64
+	public long table_size_ = -1;							// 每个维度上位数组大小[bit], m/64
 	// extra conf: add size limit
-	public static double sizeLimit = -1;							// 空间限制
+	public double sizeLimit = -1;							// 空间限制
 	public static int reduceStep = 40;								// m调整步长
 
-	public static int salt_count_ = 6;                    			// hash函数个数, k, 默认为6
+	public int salt_count_ = 6;                    			// hash函数个数, k, 默认为6
 
 	public static void setIndexedDimensions(String[] columns){
 		indexedColumns = columns;
@@ -128,18 +128,19 @@ public class CBFM{
 		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+str);
 	}
 	private static void debugPrintEle(String msg,byte[][] bytes){
-		if(DEBUG){
-			System.out.print("[CBFM]\t"+msg+" calc idx for element: ");
-			for (byte[] key : bytes) {
-				System.out.print(Arrays.toString(key)+", ");
-			}
-			System.out.println();
-		}
+//		if(DEBUG){
+//			System.out.print("[CBFM]\t"+msg+" calc idx for element: ");
+//			for (byte[] key : bytes) {
+//				System.out.print(Arrays.toString(key)+", ");
+//			}
+//			System.out.println();
+//		}
 	}
 	private static void debugPrintIdx(String msg,List<Long> idxes){
-		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+msg+" insert indexes: "+idxes);
+//		if(CBFM.DEBUG) System.out.println("[CBFM]\t"+msg+" insert indexes: "+idxes);
 	}
-	public CBFM(){
+	public CBFM(long predicted_element_count_){
+		this.predicted_element_count_ = predicted_element_count_;
 		initParams();
 		bloom_filter_generate_unique_salt();
 		generateTable();
@@ -147,6 +148,7 @@ public class CBFM{
 	}
 
 	private void displayParams(){
+		debugPrint("count: "+predicted_element_count_);
 		debugPrint("k: "+salt_count_);
 		debugPrint("m: "+table_size_);
 		debugPrint("size: "+bit_table_.length * 64.0 / (1024*1024)+"M");
@@ -162,19 +164,20 @@ public class CBFM{
 
 	public CBFM(String compressedString){
 		initFromString(compressedString);
-		initParams();// TODO recalc or store?
+		initParams();
 		bloom_filter_generate_unique_salt();
 		displayParams();
 	}
 
 	private void initFromString(String str){
 		String[] tokens = str.split(",");
-		longLen = Integer.valueOf(tokens[0]);
+		predicted_element_count_ = Long.valueOf(tokens[0]);
+		longLen = Integer.valueOf(tokens[1]);
 		bit_table_ = new long[longLen];
-		for(int i = 1; i <= longLen && i<tokens.length; ++i){
-			int separateIndex = tokens[i].indexOf(":");
-			bit_table_[Integer.valueOf(tokens[i].substring(0,separateIndex))] =
-					Long.valueOf(tokens[i].substring(separateIndex+1));
+		for(int i = 0; i<tokens.length-2; ++i){
+			int separateIndex = tokens[i+2].indexOf(":");
+			bit_table_[Integer.valueOf(tokens[i+2].substring(0,separateIndex))] =
+					Long.valueOf(tokens[i+2].substring(separateIndex+1));
 		}
 	}
 
@@ -649,7 +652,7 @@ public class CBFM{
 	}
 
 	public String compressTable(){
-		return compressFromTable(this.bit_table_);
+		return compressFromTable(this.predicted_element_count_, this.bit_table_);
 	}
 
 	/**
@@ -657,14 +660,16 @@ public class CBFM{
 	 * @param table
 	 * @return
      */
-	public static String compressFromTable(long[] table){
+	public static String compressFromTable(long predicted_element_count_, long[] table){
+		if(table == null) return null;
 		StringBuilder sb = new StringBuilder();
+		sb.append(predicted_element_count_+",");
 		sb.append(table.length+",");
 		for (int i = 0; i < table.length; i++) {
 			if(table[i] != 0) sb.append(i+":"+table[i]+",");
 		}
 		String compressedStr = sb.toString();
-		debugPrint("compressed table: "+compressedStr);
+//		debugPrint("compressed table: "+compressedStr);
 		return compressedStr;
 	}
 }

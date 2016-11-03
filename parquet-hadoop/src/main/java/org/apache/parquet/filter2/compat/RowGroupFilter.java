@@ -65,6 +65,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   // TODO test the shit out of this
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
+    if(blocks.get(0).getIndexTableStr() == null) return blocks;
     List<BlockMetaData> cadidateBlocks = new ArrayList<>();
     if(filter instanceof FilterCompat.FilterPredicateCompat){
       // only deal with FilterPredicateCompat

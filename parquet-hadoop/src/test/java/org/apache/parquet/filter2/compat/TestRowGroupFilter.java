@@ -109,14 +109,13 @@ public class TestRowGroupFilter {
     MessageType schema = MessageTypeParser.parseMessageType("message tbl { required binary a (UTF8); }");
     Operators.BinaryColumn a = binaryColumn("a");
 
-    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"a"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{"Test".getBytes()}));
     b1.setIndexTableStr(cbfm1.compressTable());
     blocks.add(b1);
@@ -131,14 +130,13 @@ public class TestRowGroupFilter {
     MessageType schema = MessageTypeParser.parseMessageType("message tbl { required int32 b; }");
     IntColumn b = intColumn("b");
 
-    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"b"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(4).putInt(17).array()}));
     b1.setIndexTableStr(cbfm1.compressTable());
     blocks.add(b1);
@@ -153,14 +151,13 @@ public class TestRowGroupFilter {
     MessageType schema = MessageTypeParser.parseMessageType("message tbl { required int64 c; }");
     Operators.LongColumn c = longColumn("c");
 
-    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"c"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(8).putLong(17).array()}));
     b1.setIndexTableStr(cbfm1.compressTable());
     blocks.add(b1);
@@ -175,14 +172,13 @@ public class TestRowGroupFilter {
     MessageType schema = MessageTypeParser.parseMessageType("message tbl { required double d; }");
     Operators.DoubleColumn d = doubleColumn("d");
 
-    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"d"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(8).putDouble(17.7).array()}));
     b1.setIndexTableStr(cbfm1.compressTable());
     blocks.add(b1);
@@ -197,14 +193,13 @@ public class TestRowGroupFilter {
     MessageType schema = MessageTypeParser.parseMessageType("message tbl { required double e; }");
     Operators.FloatColumn e = floatColumn("e");
 
-    CBFM.predicted_element_count_ = 10;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"e"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{ByteBuffer.allocate(4).putFloat(17.7f).array()}));
     b1.setIndexTableStr(cbfm1.compressTable());
     blocks.add(b1);
@@ -226,14 +221,13 @@ public class TestRowGroupFilter {
     IntColumn b = intColumn("b");
     Operators.DoubleColumn c = doubleColumn("c");
 
-    CBFM.predicted_element_count_ = 100;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"a","b","c"});
 
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{
             "Test".getBytes(),
             ByteBuffer.allocate(4).putInt(7).array(),
@@ -263,7 +257,6 @@ public class TestRowGroupFilter {
     IntColumn b = intColumn("b");
     Operators.DoubleColumn c = doubleColumn("c");
 
-    CBFM.predicted_element_count_ = 100;
     CBFM.desired_false_positive_probability_ = 0.1;
     CBFM.setIndexedDimensions(new String[]{"a","b","c"});
     // reduce the combination of b & c
@@ -272,7 +265,7 @@ public class TestRowGroupFilter {
     List<BlockMetaData> blocks = new ArrayList<>();
 
     BlockMetaData b1 = new BlockMetaData();
-    CBFM cbfm1 = new CBFM();
+    CBFM cbfm1 = new CBFM(10);
     cbfm1.insert(cbfm1.calculateIdxsForInsert(new byte[][]{
             "Test".getBytes(),
             ByteBuffer.allocate(4).putInt(7).array(),

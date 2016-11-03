@@ -36,7 +36,6 @@ public class BlockMetaData {
   private long totalByteSize;
   private String path;
   private String indexTableStr;
-
   public BlockMetaData() {
   }
 

@@ -51,12 +51,11 @@ public class CBFMTest {
         System.out.println(Arrays.toString(C1.getPath()));
         System.out.println(Arrays.toString(C2.getPath()));
         */
-        CBFM.predicted_element_count_ = 1000;
         CBFM.desired_false_positive_probability_ = 0.1;
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
         CBFM.reducedimensions = new int[]{0,1};
 //		CBFM.sizeLimit = 20;
-        CBFM cbfm = new CBFM();
+        CBFM cbfm = new CBFM(1000);
         cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
         CBFM convertedCBFM = new CBFM(cbfm.compressTable());
 
@@ -64,10 +63,9 @@ public class CBFMTest {
     @Test
     public void testStringConvert(){
         CBFM.DEBUG = true;
-        CBFM.predicted_element_count_ = 100;
         CBFM.desired_false_positive_probability_ = 0.1;
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
-        CBFM cbfm = new CBFM();
+        CBFM cbfm = new CBFM(1000);
         cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(), "The".getBytes(), "Shit".getBytes()}));
         CBFM convertedCBFM = new CBFM(cbfm.compressTable());
         assertArrayEquals(cbfm.getTable(), convertedCBFM.getTable());

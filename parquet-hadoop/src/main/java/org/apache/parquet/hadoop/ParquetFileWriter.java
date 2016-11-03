@@ -503,9 +503,9 @@ public class ParquetFileWriter {
                 chunkType = "string";
                 break;
             }
-            if(CBFM.DEBUG){
-              System.out.println("==========Value for column "+currentColumnName+":"+chunkType+" row "+j+" is "+Arrays.toString(rows[j][i]));
-            }
+//            if(CBFM.DEBUG){
+//              System.out.println("==========Value for column "+currentColumnName+":"+chunkType+" row "+j+" is "+Arrays.toString(rows[j][i]));
+//            }
           }
           break;
         }
@@ -532,7 +532,7 @@ public class ParquetFileWriter {
     // adding more mem may solve this
     BytesInput uncompressedBytes = decompressor.decompress(compressedBytes, (int)uncompressedTotalPageSize);
     byte[] uncompressedByteArray = uncompressedBytes.toByteArray();
-    if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
+//    if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
     return uncompressedByteArray;
   }
 
@@ -570,11 +570,12 @@ public class ParquetFileWriter {
     currentBlock.setRowCount(currentRecordCount);
     if(CBFM.ON){
 //      CBFM.predicted_element_count_ = (long)Math.ceil(currentRecordCount*0.5);// affect correctness?
-      CBFM.predicted_element_count_ = currentRecordCount;// affect correctness?
-      CBFM cbfm = new CBFM();
-      for(byte[][] row : rows){
-        ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
-        cbfm.insert(insertIndexes);
+      CBFM cbfm = new CBFM(currentRecordCount);
+      if(rows[0][0] != null) {
+        for (byte[][] row : rows) {
+          ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
+          cbfm.insert(insertIndexes);
+        }
       }
       currentBlock.setIndexTableStr(cbfm.compressTable());
     }
@@ -734,6 +735,7 @@ public class ParquetFileWriter {
       // store table as String
       for (BlockMetaData block : blocks) {
         extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
+        block.setIndexTableStr(null);
       }
     }
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);

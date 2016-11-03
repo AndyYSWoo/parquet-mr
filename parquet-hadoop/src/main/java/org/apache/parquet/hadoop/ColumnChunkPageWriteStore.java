@@ -119,11 +119,11 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       // by concatenating before collecting instead of collecting twice,
       // we only allocate one buffer to copy into instead of multiple.
       buf.collect(BytesInput.concat(BytesInput.from(tempOutputStream), compressedBytes));
-      if(CBFM.DEBUG) {
-        System.out.println("==========Bytes uncompressed: " + Arrays.toString(bytes.toByteArray()));
-        System.out.println("==========Bytes compressed: " + Arrays.toString(compressedBytes.toByteArray()));
-        System.out.println("==========Buf after collect: " + Arrays.toString(this.buf.toByteArray()));
-      }
+//      if(CBFM.DEBUG) {
+//        System.out.println("==========Bytes uncompressed: " + Arrays.toString(bytes.toByteArray()));
+//        System.out.println("==========Bytes compressed: " + Arrays.toString(compressedBytes.toByteArray()));
+//        System.out.println("==========Buf after collect: " + Arrays.toString(this.buf.toByteArray()));
+//      }
       rlEncodings.add(rlEncoding);
       dlEncodings.add(dlEncoding);
       dataEncodings.add(valuesEncoding);
