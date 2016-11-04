@@ -134,6 +134,12 @@ public class ParquetFileWriter {
   private long currentChunkFirstDataPage;         // set in startColumn (out.pos())
   private long currentChunkDictionaryPageOffset;  // set in writeDictionaryPage
 
+  // CBFM write
+  private Path file;
+  private boolean overwriteFlag;
+  private long dfsBlockSize;
+  private Configuration configuration;
+  private boolean firstConstructor;
 
   private ColumnDescriptor currentColumnDescriptor;
   /**
@@ -226,20 +232,22 @@ public class ParquetFileWriter {
                            Path file, Mode mode, long rowGroupSize,
                            int maxPaddingSize)
           throws IOException {
+    firstConstructor = true;
+    this.configuration = configuration;
+    this.file = file;
     TypeUtil.checkValidWriteSchema(schema);
     this.schema = schema;
     FileSystem fs = file.getFileSystem(configuration);
     boolean overwriteFlag = (mode == Mode.OVERWRITE);
-
+    this.overwriteFlag = overwriteFlag;
     if (supportsBlockSize(fs)) {
       // use the default block size, unless row group size is larger
       long dfsBlockSize = Math.max(fs.getDefaultBlockSize(file), rowGroupSize);
-
+      this.dfsBlockSize = dfsBlockSize;
       this.alignment = PaddingAlignment.get(
               dfsBlockSize, rowGroupSize, maxPaddingSize);
       this.out = fs.create(file, overwriteFlag, DFS_BUFFER_SIZE_DEFAULT,
               fs.getDefaultReplication(file), dfsBlockSize);
-
     } else {
       this.alignment = NoAlignment.get(rowGroupSize);
       this.out = fs.create(file, overwriteFlag);
@@ -260,10 +268,14 @@ public class ParquetFileWriter {
   ParquetFileWriter(Configuration configuration, MessageType schema,
                     Path file, long rowAndBlockSize, int maxPaddingSize)
           throws IOException {
+    firstConstructor = false;
+    this.configuration = configuration;
+    this.file = file;
     FileSystem fs = file.getFileSystem(configuration);
     this.schema = schema;
     this.alignment = PaddingAlignment.get(
             rowAndBlockSize, rowAndBlockSize, maxPaddingSize);
+    this.dfsBlockSize = rowAndBlockSize;
     this.out = fs.create(file, true, DFS_BUFFER_SIZE_DEFAULT,
             fs.getDefaultReplication(file), rowAndBlockSize);
     this.encodingStatsBuilder = new EncodingStats.Builder();
@@ -577,10 +589,34 @@ public class ParquetFileWriter {
           cbfm.insert(insertIndexes);
         }
       }
-      currentBlock.setIndexTableStr(cbfm.compressTable());
+      Path filePath = new Path(file.getParent(), ".cbfm-"+file.getName()+"-"+currentBlock.getStartingPos());
+      FSDataOutputStream cbfmOut = getOut(filePath);
+      cbfmOut.write(cbfm.compressTable().getBytes());
+      cbfmOut.close();
+      cbfmOut = null;
+      cbfm = null;
+      currentBlock.setIndexTableStr(filePath.toString());
     }
     blocks.add(currentBlock);
     currentBlock = null;
+  }
+
+  private FSDataOutputStream getOut(Path filePath) throws IOException {
+    FileSystem fs = file.getFileSystem(configuration);
+    FileSystem newFS = filePath.getFileSystem(configuration);
+    FSDataOutputStream out = null;
+    if(firstConstructor){
+      if(supportsBlockSize(fs)){
+        out = fs.create(filePath, overwriteFlag, DFS_BUFFER_SIZE_DEFAULT,
+                newFS.getDefaultReplication(filePath), dfsBlockSize);
+      }else{
+        out = fs.create(filePath, overwriteFlag);
+      }
+    }else{
+      out = fs.create(filePath, true, DFS_BUFFER_SIZE_DEFAULT,
+              fs.getDefaultReplication(filePath), dfsBlockSize);
+    }
+    return out;
   }
 
   public void appendFile(Configuration conf, Path file) throws IOException {
@@ -741,6 +777,14 @@ public class ParquetFileWriter {
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);
     out.close();
+/*
+    Path myPath = new Path(parent, ".test"+this.fileName);
+    FileSystem fs = myPath.getFileSystem(configuration);
+    FSDataOutputStream myOut = fs.create(myPath,overwriteFlag);
+    myOut.write(new byte[]{47});
+    myOut.flush();
+    myOut.close();
+    */
   }
 
   private static void serializeFooter(ParquetMetadata footer, FSDataOutputStream out) throws IOException {

@@ -51,13 +51,13 @@ public class CBFMTest {
         System.out.println(Arrays.toString(C1.getPath()));
         System.out.println(Arrays.toString(C2.getPath()));
         */
+        CBFM.DEBUG = true;
         CBFM.desired_false_positive_probability_ = 0.1;
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
-        CBFM.reducedimensions = new int[]{0,1};
-//		CBFM.sizeLimit = 20;
-        CBFM cbfm = new CBFM(1000);
-        cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
-        CBFM convertedCBFM = new CBFM(cbfm.compressTable());
+        CBFM.reducedimensions = new int[]{3};
+        CBFM cbfm = new CBFM(1731);
+//        cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
+//        CBFM convertedCBFM = new CBFM(cbfm.compressTable());
 
     }
     @Test

@@ -18,10 +18,7 @@
  */
 package org.apache.parquet.filter2.compat;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +26,10 @@ import java.util.List;
 
 import me.yongshang.cbfm.CBFM;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
@@ -100,12 +101,28 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       }
       int hitCount = 0;
       for (BlockMetaData block : blocks) {
-        CBFM cbfm = new CBFM(block.getIndexTableStr());
-        ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
-          if(cbfm.contains(searchIndex)){
-            hitCount++;
-            cadidateBlocks.add(block);
-          }
+        try {
+          Path cbfmFile = new Path(block.getIndexTableStr());
+          FileSystem fs = cbfmFile.getFileSystem(new Configuration());
+          // TODO better way? Or is this right? escape the temp folder
+          cbfmFile = new Path(cbfmFile.getParent().getParent().getParent().getParent().getParent(),cbfmFile.getName());
+          FSDataInputStream in = fs.open(cbfmFile);
+          BufferedReader br = new BufferedReader(new InputStreamReader(in));
+          String indexTableStr = br.readLine();
+          br.close();
+          in.close();
+          in = null;
+          br.close();
+          br = null;
+          CBFM cbfm = new CBFM(indexTableStr);
+          ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
+            if(cbfm.contains(searchIndex)){
+              hitCount++;
+              cadidateBlocks.add(block);
+            }
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
       }
       int skippedCount = blocks.size() - hitCount;
       SparkHadoopUtil.get().conf().setInt("parquet.cbfm.totalblocks."+ TaskContext.get().taskAttemptId(), blocks.size());
