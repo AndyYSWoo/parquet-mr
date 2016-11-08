@@ -144,14 +144,13 @@ public class CBFM{
 		initParams();
 		bloom_filter_generate_unique_salt();
 		generateTable();
-		displayParams();
 	}
 
 	private void displayParams(){
 		debugPrint("count: "+predicted_element_count_);
 		debugPrint("k: "+salt_count_);
 		debugPrint("m: "+table_size_);
-		debugPrint("size: "+bit_table_.length * 64.0 / (1024*1024)+"M");
+		debugPrint("size: "+(longLen * 64.0 / (1024*1024))/8.0+"MB");
 	}
 
 	/**
@@ -166,7 +165,6 @@ public class CBFM{
 		initFromString(compressedString);
 		initParams();
 		bloom_filter_generate_unique_salt();
-		displayParams();
 	}
 
 	private void initFromString(String str){
@@ -204,7 +202,7 @@ public class CBFM{
 			if(desired_false_positive_probability_ != -1 && predicted_element_count_ != -1){
 				double f = desired_false_positive_probability_;
 				long n = predicted_element_count_;
-				int k = (int) Math.floor(-Math.log(f) / Math.log(2)); // k = |-log2(f)|
+				int k = (int) Math.floor(-Math.log(f) / Math.log(2)); // k = -log2(f)
 				salt_count_ = k;
 				int m = (int) Math.ceil(n * (1/Math.log(2)) * (Math.log(1/f)/Math.log(2)));
 				m += 1;
@@ -221,6 +219,7 @@ public class CBFM{
 	
 	private void generateTable(){
 		calcTableSize();
+		displayParams();
 		bit_table_ = new long[longLen];
 	}
 	private void calcTableSize(){

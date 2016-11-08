@@ -44,6 +44,7 @@ import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
+import org.apache.spark.TaskContext$;
 import org.apache.spark.deploy.SparkHadoopUtil;
 
 import static org.apache.parquet.Preconditions.checkNotNull;
@@ -125,18 +126,6 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         }
       }
       int skippedCount = blocks.size() - hitCount;
-      SparkHadoopUtil.get().conf().setInt("parquet.cbfm.totalblocks."+ TaskContext.get().taskAttemptId(), blocks.size());
-      SparkHadoopUtil.get().conf().setInt("parquet.cbfm.skipblocks."+ TaskContext.get().taskAttemptId(), skippedCount);
-      /*
-      try {
-        PrintWriter pw = new PrintWriter(new FileWriter(new File("/Users/yongshangwu/work/out"), true));
-        pw.write("Task "+TaskContext.get().taskAttemptId()+": total "+blocks.size()+" blocks, "+skippedCount+" blocks skipped.\n");
-        pw.flush();
-        pw.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-      */
       System.out.println("==========total "+blocks.size()+" blocks, "+hitCount+" blocks hit.");
     }
     return cadidateBlocks;

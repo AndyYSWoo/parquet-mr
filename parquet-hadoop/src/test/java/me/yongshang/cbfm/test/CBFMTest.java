@@ -16,20 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.parquet.hadoop;
+package me.yongshang.cbfm.test;
 
 import me.yongshang.cbfm.CBFM;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.parquet.io.api.Binary;
 import org.junit.Test;
-import org.junit.Assert.*;
-
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -54,8 +51,8 @@ public class CBFMTest {
         CBFM.DEBUG = true;
         CBFM.desired_false_positive_probability_ = 0.1;
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
-        CBFM.reducedimensions = new int[]{3};
-        CBFM cbfm = new CBFM(1731);
+        CBFM.reducedimensions = new int[]{3,5};
+        CBFM cbfm = new CBFM(122756);
 //        cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
 //        CBFM convertedCBFM = new CBFM(cbfm.compressTable());
 
