@@ -58,6 +58,32 @@ public class MultiDBitmapIndexTest {
         for (byte[][] element : bytes) {
             assertTrue(index.contains(element));
         }
+        System.out.println("[MDBitmapIdx]\tavg insert time: "+insertTime/(double)elementCount+" ms, avg query time: "+(System.currentTimeMillis()-start)/(double)elementCount+" ms");
+    }
+
+    @Test
+    public void testMassively1D() throws IOException {
+        int elementCount = 100000;
+        byte[][][] bytes = new byte[elementCount][1][];
+        // --Table partsupp:
+        // ----A: int
+        MultiDBitmapIndex index = new MultiDBitmapIndex(0.1, elementCount, 1);
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen/partsupp.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        long insertTime = 0;
+        for(int i = 0; i < elementCount; i ++){
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            bytes[i][0] = ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[2])).array();
+            long start = System.currentTimeMillis();
+            index.insert(bytes[i]);
+            insertTime += (System.currentTimeMillis()-start);
+        }
+        index.displayUsage();
+        long start = System.currentTimeMillis();
+        for (byte[][] element : bytes) {
+            assertTrue(index.contains(element));
+        }
 //        System.out.println("[MDBitmapIdx]\tavg insert time: "+insertTime/(double)elementCount+" ms, avg query time: "+(System.currentTimeMillis()-start)/(double)elementCount+" ms");
     }
 

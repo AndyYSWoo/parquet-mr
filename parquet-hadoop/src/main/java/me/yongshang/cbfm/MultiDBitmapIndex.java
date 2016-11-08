@@ -29,7 +29,7 @@ public class MultiDBitmapIndex {
         initParams();
         generateSalts();
         this.dimension = dimension;
-        map = new UnifiedMap(false);
+        map = new UnifiedMap(dimension==1);
     }
 
     private void initParams(){
@@ -174,11 +174,16 @@ public class MultiDBitmapIndex {
             HashMap<Integer, UnifiedMap> higherMap = map.getMidMap();
             for (int idx : indexes[level]) {
                 if(!higherMap.containsKey(idx)){
+                    // find a bit not set this level
                     return false;
                 }else{
-                    return findBitsInMap(higherMap.get(idx), level+1, indexes);
+                    if(!findBitsInMap(higherMap.get(idx), level+1, indexes)){
+                        // not found next level
+                        return false;
+                    }
                 }
             }
+            return true;
         }else{
             RoaringBitmap bitmap = map.getBitmap();
             for (int bit : indexes[level]) {
@@ -186,7 +191,6 @@ public class MultiDBitmapIndex {
             }
             return true;
         }
-        return true;
     }
 
     private long[] hash(byte[] element){
