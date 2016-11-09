@@ -51,8 +51,8 @@ public class CBFMTest {
         CBFM.DEBUG = true;
         CBFM.desired_false_positive_probability_ = 0.1;
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
-        CBFM.reducedimensions = new int[]{3,5};
-        CBFM cbfm = new CBFM(122756);
+        CBFM.reducedimensions = new int[]{3};
+        CBFM cbfm = new CBFM(10000);
 //        cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
 //        CBFM convertedCBFM = new CBFM(cbfm.compressTable());
 

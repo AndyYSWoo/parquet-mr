@@ -222,16 +222,15 @@ public class MultiDBitmapIndex {
 
     private long sizeInMem;
     private long sizeCompressed;
-    public void displayUsage(){
-        System.out.println("[MDBitmapIdx]\tk: "+saltCount);
-        System.out.println("[MDBitmapIdx]\tm: "+m);
+    public long[] getUsage(){
+        long[] usage = new long[2];
 
         sizeInMem = 0;
         sizeCompressed = 0;
         collectSize(map);
-
-        System.out.println("[MDBitmapIdx]\tin memory size: "+sizeInMem/(1024.0*1024)+"MB," +
-                " compressed: "+sizeCompressed/(1024.0*1024)+"MB");
+        usage[0] = sizeInMem;
+        usage[1] = sizeCompressed;
+        return usage;
     }
 
     private void collectSize(UnifiedMap map){
@@ -248,6 +247,15 @@ public class MultiDBitmapIndex {
                 collectSize(highMap.get(idx));
             }
         }
+    }
+
+    public void displayUsage(){
+        System.out.println("[MDBitmapIdx]\tk: "+saltCount);
+        System.out.println("[MDBitmapIdx]\tm: "+m);
+
+        long[] usage = getUsage();
+        System.out.println("[MDBitmapIdx]\tin memory size: "+usage[0]/(1024.0*1024)+"MB," +
+                " compressed: "+usage[1]/(1024.0*1024)+"MB");
     }
 
 }

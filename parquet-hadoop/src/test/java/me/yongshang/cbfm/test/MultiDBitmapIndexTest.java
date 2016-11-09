@@ -58,6 +58,12 @@ public class MultiDBitmapIndexTest {
         for (byte[][] element : bytes) {
             assertTrue(index.contains(element));
         }
+        // test non-member
+        assertFalse(index.contains(new byte[][]{
+                ByteBuffer.allocate(4).putInt(-17).array(),
+                "FUCK".getBytes(),
+                ByteBuffer.allocate(8).putDouble(-77.7).array()
+        }));
         System.out.println("[MDBitmapIdx]\tavg insert time: "+insertTime/(double)elementCount+" ms, avg query time: "+(System.currentTimeMillis()-start)/(double)elementCount+" ms");
     }
 
