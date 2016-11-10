@@ -60,10 +60,11 @@ public class FullBitmapIndex {
                 }
                 if(!survive) continue;
                 maps.put(currentComb, new MultiDBitmapIndex(falsePositiveProbability, predictedCount, len));
-                System.out.println(currentComb);
+//                System.out.println(currentComb);
             }
         }
     }
+
     private void combine(String[] arr,
                          int i,
                          int n,
@@ -105,7 +106,17 @@ public class FullBitmapIndex {
         }
     }
 
-    public boolean contains(){
+    public boolean contains(String[] columns, byte[][] bytes){
+        String comb = "";
+        for (String column : columns) {
+            comb += (column+"|");
+        }
+        for (String key : maps.keySet()) {
+            if(key.equals(comb)){
+                return maps.get(key).contains(bytes);
+            }
+        }
+        // if combination not indexed, give possibaly false positive result.
         return true;
     }
 

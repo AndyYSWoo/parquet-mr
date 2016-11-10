@@ -13,6 +13,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Created by yongshangwu on 2016/11/9.
  */
@@ -59,7 +62,11 @@ public class FullBitmapIndexTest {
                 new String[]{"B", "C"},
         };
         byte[][][] bytes = new byte[elementCount][dimensions.length][];
-        FullBitmapIndex index = new FullBitmapIndex(0.1, elementCount, dimensions, reducedDimensions);
+        int indexCount = 1;
+        ArrayList<FullBitmapIndex> indexes = new ArrayList<>();
+        for (int i = 0; i < indexCount; i++) {
+            indexes.add(new FullBitmapIndex(0.1, elementCount, dimensions, reducedDimensions));
+        }
         FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen/partsupp.tbl");
         BufferedReader br = new BufferedReader(reader);
         long insertTime = 0;
@@ -71,10 +78,21 @@ public class FullBitmapIndexTest {
             bytes[i][2] = ByteBuffer.allocate(8).putDouble(Double.valueOf(tokens[3])).array();
 //            bytes[i][3] = ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[1])).array();
             long start = System.currentTimeMillis();
-            index.insert(bytes[i]);
+            for (FullBitmapIndex index : indexes) {
+                index.insert(bytes[i]);
+            }
             insertTime += (System.currentTimeMillis()-start);
         }
-        index.displayUsage();
+        for (FullBitmapIndex index : indexes) {
+            index.displayUsage();
+            for (int i = 0; i < elementCount; i++) {
+                assertTrue(index.contains(new String[]{"A", "B"},
+                        new byte[][]{bytes[i][0], bytes[i][1]}));
+                assertFalse(index.contains(new String[]{"A", "B"}, new byte[][]{{1},{1}}));
+
+            }
+            System.out.println();
+        }
     }
     @Test
     public void testCompare() throws IOException {
@@ -112,21 +130,6 @@ public class FullBitmapIndexTest {
         System.out.println();
 
         RoaringBitmap[] bitmaps = new RoaringBitmap[8];
-    }
-    private static void combine(String[] arr,
-                         int i,
-                         int n,
-                         ArrayList<String> list,
-                         ArrayList<ArrayList<String>> results){
-        if (n==0) {
-            results.add((ArrayList<String>)list.clone());
-            return;
-        }
-        if (i==arr.length) return;
-        list.add(arr[i]);
-        combine(arr, i+1, n-1, list, results);
-        list.remove(arr[i]);
-        combine(arr, i+1, n, list, results);
     }
 
 }
