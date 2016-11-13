@@ -774,6 +774,7 @@ public class ParquetFileWriter {
         block.setIndexTableStr(null);
       }
     }
+    System.out.println(blocks.size());
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);
     out.close();
