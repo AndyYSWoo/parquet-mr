@@ -23,6 +23,7 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.parquet.io.api.Binary;
 import org.junit.Test;
 
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -33,7 +34,7 @@ import static org.junit.Assert.assertTrue;
  * Created by Yongshang Wu on 2016/10/18.
  */
 public class CBFMTest {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         /*
         MessageType SCHEMA = MessageTypeParser.parseMessageType("" +
                 "message m {" +
@@ -53,6 +54,7 @@ public class CBFMTest {
         CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
         CBFM.reducedimensions = new int[]{3};
         CBFM cbfm = new CBFM(10000);
+
 //        cbfm.insert(cbfm.calculateIdxsForInsert(new byte[][]{"Test".getBytes(),"String".getBytes(),"Convert".getBytes()}));
 //        CBFM convertedCBFM = new CBFM(cbfm.compressTable());
 
@@ -103,4 +105,5 @@ public class CBFMTest {
 
 
     }
+
 }

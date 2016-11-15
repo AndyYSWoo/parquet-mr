@@ -20,6 +20,9 @@ package me.yongshang.cbfm;
 
 import org.roaringbitmap.RoaringBitmap;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -40,6 +43,25 @@ public class MultiDBitmapIndex {
     private int dimension;
 
     private UnifiedMap map;
+
+    public MultiDBitmapIndex(DataInput in, double fpp, long predictedCount){
+        this.falsePositiveProbability = fpp;
+        this.predictedCount = predictedCount;
+        initParams();
+        generateSalts();
+
+        map = new UnifiedMap(in);
+    }
+
+    public MultiDBitmapIndex(String str, double fpp, long predictedCount){
+        this.falsePositiveProbability = fpp;
+        this.predictedCount = predictedCount;
+        initParams();
+        generateSalts();
+
+        map = new UnifiedMap(str);
+
+    }
 
     public MultiDBitmapIndex(double fpp, long predictedCount, int dimension){
         this.falsePositiveProbability = fpp;
@@ -278,5 +300,9 @@ public class MultiDBitmapIndex {
 
     public String compress(){
         return map.compress();
+    }
+
+    public void serialize(DataOutput out) throws IOException {
+        map.serialize(out);
     }
 }

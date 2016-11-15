@@ -21,9 +21,7 @@ package org.apache.parquet.format.converter;
 import static org.apache.parquet.format.Util.readFileMetaData;
 import static org.apache.parquet.format.Util.writePageHeader;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.FullBitmapIndex;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
 import org.apache.parquet.format.PageEncodingStats;
@@ -655,6 +654,7 @@ public class ParquetMetadataConverter {
         return filterFileMetaDataByMidpoint(readFileMetaData(from), filter);
       }
     });
+
     if (Log.DEBUG) LOG.debug(fileMetaData);
     ParquetMetadata parquetMetadata = fromParquetMetadata(fileMetaData);
     if (Log.DEBUG) LOG.debug(ParquetMetadata.toPrettyJSON(parquetMetadata));
@@ -662,6 +662,23 @@ public class ParquetMetadataConverter {
       Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
       for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
         blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
+      }
+    }
+    if(FullBitmapIndex.ON){
+//      Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
+//      for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+//        blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
+//      }
+      DataInput in = new DataInputStream(from);
+      int indexCount = in.readInt();
+      for (int i = 0; i < indexCount; i++) {
+        long startPos = in.readLong();
+        FullBitmapIndex index = new FullBitmapIndex(in);
+        for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+          if(startPos == blockMetaData.getStartingPos()){
+            blockMetaData.index = index;
+          }
+        }
       }
     }
     return parquetMetadata;

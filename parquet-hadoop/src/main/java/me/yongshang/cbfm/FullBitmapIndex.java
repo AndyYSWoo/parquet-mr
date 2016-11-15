@@ -18,23 +18,70 @@
  */
 package me.yongshang.cbfm;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.*;
 
 /**
  * Created by yongshangwu on 2016/11/8.
  */
 public class FullBitmapIndex {
+    public static boolean ON = false;
 
-
-    private double falsePositiveProbability;
+    public static double falsePositiveProbability;
     private long predictedCount;
-    private String[] dimensions;
-    private String[][] reducedDimensions;
+    public static String[] dimensions;
+    public static String[][] reducedDimensions;
+    public static void setDimensions(String[] dimensions, String[][] reducedDimensions){
+        FullBitmapIndex.dimensions = dimensions;
+        FullBitmapIndex.reducedDimensions = reducedDimensions;
+    }
+
     private String[] reducedStrs;
 
     private HashMap<String, MultiDBitmapIndex> maps;
+
+    public FullBitmapIndex(DataInput in){
+        try {
+            predictedCount = in.readLong();
+
+            maps = new HashMap<>();
+
+            int elementCount = in.readInt();
+            for (int i = 0; i < elementCount; i++) {
+                String key = in.readUTF();
+                MultiDBitmapIndex value = new MultiDBitmapIndex(in, falsePositiveProbability, predictedCount);
+                maps.put(key, value);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Init index from input stream failed...");
+        }
+    }
+
+    public FullBitmapIndex(String str){
+
+        // parse predictedCount
+        int countSeparatorIndex = str.indexOf("$");
+        predictedCount = Long.valueOf(str.substring(0, countSeparatorIndex));
+        str = str.substring(countSeparatorIndex+1);
+
+        maps = new HashMap<>();
+        // parse map
+        String[] dimensionTokens = str.split("@");
+        for (String dimensionToken : dimensionTokens) {
+            int separatorIndex = dimensionToken.indexOf(":");
+            String key = dimensionToken.substring(0, separatorIndex);
+            String value = dimensionToken.substring(separatorIndex+1);
+            maps.put(key, new MultiDBitmapIndex(value, falsePositiveProbability, predictedCount));
+        }
+    }
+
+    public FullBitmapIndex(long predictedCount){
+        this.predictedCount = predictedCount;
+        setUp();
+    }
 
     public FullBitmapIndex(double fpp,
                            long predictedCount,
@@ -45,6 +92,10 @@ public class FullBitmapIndex {
         this.dimensions = dimensions;
         this.reducedDimensions = reducedDimensions;
 
+        setUp();
+    }
+
+    private void setUp(){
         reducedStrs = new String[reducedDimensions.length];
         for (int i = 0; i < reducedDimensions.length; ++i) {
             String tempReduced = "";
@@ -151,12 +202,31 @@ public class FullBitmapIndex {
 
     public String compress(){
         StringBuilder sb = new StringBuilder();
+        sb.append(predictedCount+"$");
+        Set<String> keySet = new HashSet<>();
         for (String key : maps.keySet()) {
+            keySet.add(key);
+        }
+        for (String key : keySet) {
             sb.append(key+":");
             MultiDBitmapIndex index = maps.get(key);
-            sb.append(index.toString());
+            sb.append(index.compress());
+            maps.remove(key);// save memory
             sb.append("@");
         }
-        return null;
+        return sb.toString();
+    }
+
+    public void serialize(DataOutput out) throws IOException {
+        out.writeLong(predictedCount);
+
+        Set<String> keySet = maps.keySet();
+        out.writeInt(keySet.size());
+
+        for (String key : keySet) {
+            out.writeUTF(key);
+            MultiDBitmapIndex index = maps.get(key);
+            index.serialize(out);
+        }
     }
 }

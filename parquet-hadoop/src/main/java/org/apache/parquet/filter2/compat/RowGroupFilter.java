@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.FullBitmapIndex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -67,6 +68,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   // TODO test the shit out of this
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
+    if(!(CBFM.ON || FullBitmapIndex.ON)) return blocks;
     if(blocks.get(0).getIndexTableStr() == null) return blocks;
     List<BlockMetaData> cadidateBlocks = new ArrayList<>();
     if(filter instanceof FilterCompat.FilterPredicateCompat){
@@ -75,12 +77,23 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       FilterPredicate filterPredicate = filterPredicateCompat.getFilterPredicate();
       List<Operators.Eq> eqFilters = new ArrayList<>();
       extractEqFilter(filterPredicate, eqFilters);
-      byte[][] indexedColumnBytes = new byte[CBFM.dimension][];
-      for(Operators.Eq eqFilter : eqFilters){
+
+      String[] indexedColumns = null;
+      if(CBFM.ON) indexedColumns = CBFM.indexedColumns;
+      else if(FullBitmapIndex.ON) indexedColumns = FullBitmapIndex.dimensions;
+
+      String[] currentComb = new String[eqFilters.size()];
+
+      byte[][] indexedColumnBytes = new byte[indexedColumns.length][];
+      for(int j = 0; j < eqFilters.size(); ++j){
+        Operators.Eq eqFilter = eqFilters.get(j);
+
         String[] columnPath = eqFilter.getColumn().getColumnPath().toArray();
         String columnName = columnPath[columnPath.length-1];
-        for(int i = 0; i < CBFM.dimension; ++i){
-          if(CBFM.indexedColumns[i].equals(columnName)){
+        currentComb[j] = columnName;
+
+        for(int i = 0; i < indexedColumns.length; ++i){
+          if(indexedColumns[i].equals(columnName)){
             Comparable value = eqFilter.getValue();
             if(value instanceof Binary){
               indexedColumnBytes[i] = indexedColumnBytes[i] = ((Binary) value).getBytes();
@@ -102,27 +115,35 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       }
       int hitCount = 0;
       for (BlockMetaData block : blocks) {
-        try {
-          Path cbfmFile = new Path(block.getIndexTableStr());
-          FileSystem fs = cbfmFile.getFileSystem(new Configuration());
-          // TODO better way? Or is this right? escape the temp folder
-          cbfmFile = new Path(cbfmFile.getParent().getParent().getParent().getParent().getParent(),cbfmFile.getName());
-          FSDataInputStream in = fs.open(cbfmFile);
-          BufferedReader br = new BufferedReader(new InputStreamReader(in));
-          String indexTableStr = br.readLine();
-          br.close();
-          in.close();
-          in = null;
-          br.close();
-          br = null;
-          CBFM cbfm = new CBFM(indexTableStr);
-          ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
-            if(cbfm.contains(searchIndex)){
+        if(CBFM.ON) {
+          try {
+            Path cbfmFile = new Path(block.getIndexTableStr());
+            FileSystem fs = cbfmFile.getFileSystem(new Configuration());
+            // TODO better way? Or is this right? escape the temp folder
+            cbfmFile = new Path(cbfmFile.getParent().getParent().getParent().getParent().getParent(), cbfmFile.getName());
+            FSDataInputStream in = fs.open(cbfmFile);
+            BufferedReader br = new BufferedReader(new InputStreamReader(in));
+            String indexTableStr = br.readLine();
+            br.close();
+            in.close();
+            in = null;
+            br.close();
+            br = null;
+            CBFM cbfm = new CBFM(indexTableStr);
+            ArrayList<Long> searchIndex = cbfm.calculateIdxsForSearch(indexedColumnBytes);
+            if (cbfm.contains(searchIndex)) {
               hitCount++;
               cadidateBlocks.add(block);
             }
-        } catch (IOException e) {
-          e.printStackTrace();
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+        }else if(FullBitmapIndex.ON){
+          FullBitmapIndex index = block.index;
+          if(index.contains(currentComb, indexedColumnBytes)){
+            hitCount++;
+            cadidateBlocks.add(block);
+          }
         }
       }
       int skippedCount = blocks.size() - hitCount;

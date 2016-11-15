@@ -374,7 +374,6 @@
         <version>2.10</version>
         <configuration>
           <forkMode>always</forkMode>
-          <argLine>-Xmx512m</argLine>
           <systemPropertyVariables>
             <!-- Configure Parquet logging during tests
                  See http://www.slf4j.org/api/org/slf4j/impl/SimpleLogger.html

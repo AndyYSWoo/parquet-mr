@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.Map.Entry;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.FullBitmapIndex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -305,7 +306,7 @@ public class ParquetFileWriter {
 
     currentBlock = new BlockMetaData();
     currentRecordCount = recordCount;
-    if(CBFM.ON) {
+    if(CBFM.ON || FullBitmapIndex.ON) {
       rows = new byte[(int) recordCount][CBFM.dimension][];
     }
   }
@@ -334,7 +335,7 @@ public class ParquetFileWriter {
     // need to know what type of stats to initialize to
     // better way to do this?
     currentStatistics = Statistics.getStatsBasedOnType(currentChunkType);
-    if(CBFM.ON){
+    if(CBFM.ON || FullBitmapIndex.ON){
       rowIndex = 0;
     }
   }
@@ -483,25 +484,29 @@ public class ParquetFileWriter {
     this.uncompressedLength += uncompressedTotalPageSize + headersSize;
     this.compressedLength += compressedTotalPageSize + headersSize;
     if (DEBUG) LOG.debug(out.getPos() + ": write data pages content");
+
+    String[] indexedDimensions = null;
     if(CBFM.ON){
-      // TODO seriously test this
+      indexedDimensions = CBFM.indexedColumns;
+    }else if(FullBitmapIndex.ON){
+      indexedDimensions = FullBitmapIndex.dimensions;
+    }
+
+    if(CBFM.ON || FullBitmapIndex.ON){
       // Decompress content
-      byte[] uncompressedByteArray = decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
+      byte[] uncompressedByteArray = bytes.toByteArray();//decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
       // Find corresponding column
       String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
-      for(int i = 0; i < CBFM.dimension; ++i){
-        if(CBFM.indexedColumns[i].equals(currentColumnName)){
+      for(int i = 0; i < indexedDimensions.length; ++i){
+        if(indexedDimensions[i].equals(currentColumnName)){
           int stringOffset = 0;
-          String chunkType = "";
           for(int j = 0; j < currentRecordCount; ++j){        // for every row
             switch (currentChunkType){
               case INT32:
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*4, (j+1)*4);
-                chunkType = "int";
                 break;
               case DOUBLE:
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*8, j*8+8);
-                chunkType = "double";
                 break;
               case BINARY:
                 if(stringOffset == 0){// ignore first str: 2000 3 15
@@ -512,12 +517,8 @@ public class ParquetFileWriter {
                 stringOffset += 4;
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset+strLen);
                 stringOffset += strLen;
-                chunkType = "string";
                 break;
             }
-//            if(CBFM.DEBUG){
-//              System.out.println("==========Value for column "+currentColumnName+":"+chunkType+" row "+j+" is "+Arrays.toString(rows[j][i]));
-//            }
           }
           break;
         }
@@ -596,6 +597,16 @@ public class ParquetFileWriter {
       cbfmOut = null;
       cbfm = null;
       currentBlock.setIndexTableStr(filePath.toString());
+    }
+
+    if(FullBitmapIndex.ON){
+      FullBitmapIndex index = new FullBitmapIndex(currentRecordCount);
+      if(rows[0][0] != null){
+        for (byte[][] row : rows) {
+          index.insert(row);
+        }
+      }
+      currentBlock.index = index;
     }
     blocks.add(currentBlock);
     currentBlock = null;
@@ -774,6 +785,11 @@ public class ParquetFileWriter {
         block.setIndexTableStr(null);
       }
     }
+//    if(FullBitmapIndex.ON){
+//      for(BlockMetaData block: blocks){
+//        extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
+//      }
+//    }
     System.out.println(blocks.size());
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);
@@ -792,6 +808,14 @@ public class ParquetFileWriter {
     long footerIndex = out.getPos();
     org.apache.parquet.format.FileMetaData parquetMetadata = metadataConverter.toParquetMetadata(CURRENT_VERSION, footer);
     writeFileMetaData(parquetMetadata, out);
+    if(FullBitmapIndex.ON){
+      List<BlockMetaData> blocks = footer.getBlocks();
+      out.writeInt(blocks.size());
+      for (BlockMetaData blockMetaData : blocks) {
+        out.writeLong(blockMetaData.getStartingPos());
+        blockMetaData.index.serialize(out);
+      }
+    }
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));
     BytesUtils.writeIntLittleEndian(out, (int) (out.getPos() - footerIndex));
     out.write(MAGIC);

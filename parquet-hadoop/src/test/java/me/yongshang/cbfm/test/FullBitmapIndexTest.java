@@ -23,14 +23,12 @@ import me.yongshang.cbfm.MultiDBitmapIndex;
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -69,8 +67,8 @@ public class FullBitmapIndexTest {
     }
     @Test
     public void testMassively() throws IOException {
-        int elementCount = 100000;
-        // --Table partsupp:
+        int elementCount = 200000;
+        // --Table partsup
         // ----A: int
         // ----B: string
         // ----C: double
@@ -101,16 +99,21 @@ public class FullBitmapIndexTest {
             }
             insertTime += (System.currentTimeMillis()-start);
         }
+        bytes = null;
         for (FullBitmapIndex index : indexes) {
             index.displayUsage();
-            for (int i = 0; i < elementCount; i++) {
-                assertTrue(index.contains(new String[]{"A", "B"},
-                        new byte[][]{bytes[i][0], bytes[i][1]}));
-                assertFalse(index.contains(new String[]{"A", "B"}, new byte[][]{{1},{1}}));
-
-            }
+            String str = index.compress();
+            System.out.println("Serialization complete");
+            System.out.println("[FullBitmapIdx] serialized size: "+str.getBytes().length/(1024*1024.0));
+//            for (int i = 0; i < elementCount; i++) {
+//                assertTrue(index.contains(new String[]{"A", "B"},
+//                        new byte[][]{bytes[i][0], bytes[i][1]}));
+//                assertFalse(index.contains(new String[]{"A", "B"}, new byte[][]{{1},{1}}));
+//
+//            }
             System.out.println();
         }
+        System.out.println(indexes.get(0));
     }
     @Test
     public void testCompare() throws IOException {
@@ -149,5 +152,102 @@ public class FullBitmapIndexTest {
 
         RoaringBitmap[] bitmaps = new RoaringBitmap[8];
     }
+    @Test
+    public void testSerializeRoaringBitmap() throws IOException {
+        RoaringBitmap bitmap = new RoaringBitmap();
+        bitmap.add(1);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(bitmap.serializedSizeInBytes());
+        bitmap.serialize(new DataOutputStream(new OutputStream() {
+            ByteBuffer buffer;
+            public OutputStream init(ByteBuffer buffer){
+                this.buffer = buffer;
+                return this;
+            }
+            public void flush(){};
+            public void close(){};
+            @Override
+            public void write(int b) throws IOException {
+                buffer.put((byte)b);
+            }
+            public void write(byte[] b) {
+                buffer.put(b);
+            }
+            public void write(byte[] b, int off, int l) {
+                buffer.put(b,off,l);
+            }
+        }.init(byteBuffer)));
+        RoaringBitmap newBitmap = new RoaringBitmap();
+        newBitmap.deserialize(new DataInputStream(new ByteArrayInputStream(byteBuffer.array())));
+        assertTrue(newBitmap.contains(1));
+    }
+    @Test
+    public void testNewConstructor(){
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A", "B", "C"}, new String[][]{new String[]{"B", "C"}});
+        FullBitmapIndex index = new FullBitmapIndex(10);
+        index.insert(new byte[][]{
+                {1},
+                {2},
+                {3}
+        });
+        assertTrue(index.contains(new String[]{"A", "B"}, new byte[][]{
+                {1},
+                {2}
+        }));
+    }
+    @Test
+    public void testCompression(){
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A", "B", "C"}, new String[][]{new String[]{"B", "C"}});
+        FullBitmapIndex index = new FullBitmapIndex(10);
+        index.insert(new byte[][]{
+                {1},
+                {2},
+                {3}
+        });
+        String str = index.compress();
+        System.out.println(str);
 
+        FullBitmapIndex generatedIndex = new FullBitmapIndex(str);
+        assertTrue(generatedIndex.contains(new String[]{"A", "B"}, new byte[][]{
+                {1},
+                {2}
+        }));
+        assertFalse(generatedIndex.contains(new String[]{"A", "B"}, new byte[][]{
+                {1},
+                {1}
+        }));
+        assertFalse(generatedIndex.contains(new String[]{"A", "B"}, new byte[][]{
+                {2},
+                {2}
+        }));
+    }
+
+    @Test
+    public void testSerialization() throws IOException{
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A", "B", "C"}, new String[][]{new String[]{"B", "C"}});
+        FullBitmapIndex index = new FullBitmapIndex(10);
+        index.insert(new byte[][]{
+                {1},
+                {2},
+                {3}
+        });
+
+        String filePath = "/Users/yongshangwu/Desktop/serialization";
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
+        index.serialize(out);
+        System.out.println(index.compress());
+
+        DataInput in = new DataInputStream(new FileInputStream(filePath));
+        FullBitmapIndex generatedIndex = new FullBitmapIndex(in);
+        System.out.println(generatedIndex.compress());
+        assertTrue(generatedIndex.contains(new String[]{"A", "B"}, new byte[][]{
+                {1},
+                {2}
+        }));
+    }
 }

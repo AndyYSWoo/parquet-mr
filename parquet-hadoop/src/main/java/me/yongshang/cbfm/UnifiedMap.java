@@ -20,12 +20,12 @@ package me.yongshang.cbfm;
 
 import org.roaringbitmap.RoaringBitmap;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by yongshangwu on 2016/11/8.
@@ -34,6 +34,59 @@ public class UnifiedMap {
     private boolean isLast;
     private HashMap<Integer, UnifiedMap> midMap;
     private RoaringBitmap bitmap;
+
+    public UnifiedMap(DataInput in){
+        try {
+            char id = in.readChar();
+            if(id == 'B'){
+                isLast = true;
+                bitmap = new RoaringBitmap();
+                bitmap.deserialize(in);
+            }else{
+                isLast = false;
+                int elementCount = in.readInt();
+                midMap = new HashMap<>(elementCount);
+                for (int i = 0; i < elementCount; i++) {
+                    int key = in.readInt();
+                    UnifiedMap value = new UnifiedMap(in);
+                    midMap.put(key, value);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Init UnifiedMap from DataInput failed...");
+        }
+    }
+
+    public UnifiedMap(String str){
+        if(str.charAt(0) == 'B'){
+            isLast = true;
+            str = str.substring(2, str.length()-1);
+            String[] bitTokens = str.split(", ");
+            byte[] bytes = new byte[bitTokens.length];
+            for (int i = 0; i < bitTokens.length; i++) {
+                bytes[i] = Byte.valueOf(bitTokens[i]);
+            }
+            bitmap = new RoaringBitmap();
+            try {
+                bitmap.deserialize(new DataInputStream(new ByteArrayInputStream(bytes)));
+            } catch (IOException e) {
+                System.err.println("Init RoaringBitmap from string failed...");
+                e.printStackTrace();
+            }
+        }else{
+            isLast = false;
+            midMap = new HashMap<>();
+            str = str.substring(1);
+            String[] entryTokens = str.split("%");
+            for (String entryToken : entryTokens) {
+                if(entryToken.length() == 0) continue;
+                int separatorIndex = entryToken.indexOf(":");
+                int key = Integer.valueOf(entryToken.substring(0, separatorIndex));
+                midMap.put(key, new UnifiedMap(entryToken.substring(separatorIndex+1)));
+            }
+        }
+    }
 
     public UnifiedMap(boolean isLast){
         setLast(isLast);
@@ -67,7 +120,7 @@ public class UnifiedMap {
     public void setBitmap(RoaringBitmap bitmap) {
         this.bitmap = bitmap;
     }
-
+    // TODO For now only support 2 layer embeded, if to extend, change separator
     public String compress(){
         StringBuilder sb = new StringBuilder();
         if(isLast){
@@ -75,7 +128,7 @@ public class UnifiedMap {
             try {
                 bitmap.serialize(new DataOutputStream(new OutputStream() {
                     ByteBuffer buffer;
-                    OutputStream init(ByteBuffer buffer){
+                    public OutputStream init(ByteBuffer buffer){
                         this.buffer = buffer;
                         return this;
                     }
@@ -91,16 +144,42 @@ public class UnifiedMap {
                     public void write(byte[] b, int off, int l) {
                         buffer.put(b,off,l);
                     }
-                }));
+                }.init(byteBuffer)));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            sb.append(Arrays.toString(byteBuffer.array()));
+            // save memory
+            bitmap.clear();
+            bitmap = null;
+
+            sb.append("B"+Arrays.toString(byteBuffer.array()));
+
         }else{
+            sb.append("H");
+            Set<Integer> keySet = new HashSet<>();
             for (Integer bit : midMap.keySet()) {
-                sb.append(bit +":"+ midMap.get(bit).compress());
+                keySet.add(bit);
+            }
+            for (Integer bit : keySet) {
+                sb.append(bit +":"+ midMap.get(bit).compress()+"%");
+                midMap.remove(bit);// save memory
             }
         }
-        return null;
+        return sb.toString();
+    }
+
+    public void serialize(DataOutput out) throws IOException {
+        if(isLast){
+            out.writeChar('B');
+            bitmap.serialize(out);
+        }else{
+            out.writeChar('H');
+            Set<Integer> keySet = midMap.keySet();
+            out.writeInt(keySet.size());
+            for (Integer key : keySet) {
+                out.writeInt(key);
+                midMap.get(key).serialize(out);
+            }
+        }
     }
 }
