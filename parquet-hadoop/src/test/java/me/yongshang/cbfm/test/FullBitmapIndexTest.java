@@ -67,7 +67,10 @@ public class FullBitmapIndexTest {
     }
     @Test
     public void testMassively() throws IOException {
-        int elementCount = 200000;
+        int elementCount = 100000;
+
+        String filePath = "/Users/yongshangwu/Desktop/index-count:"+elementCount;
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
         // --Table partsup
         // ----A: int
         // ----B: string
@@ -97,14 +100,14 @@ public class FullBitmapIndexTest {
             for (FullBitmapIndex index : indexes) {
                 index.insert(bytes[i]);
             }
+            bytes[i] = null;
             insertTime += (System.currentTimeMillis()-start);
         }
         bytes = null;
+        System.gc();
         for (FullBitmapIndex index : indexes) {
             index.displayUsage();
-            String str = index.compress();
-            System.out.println("Serialization complete");
-            System.out.println("[FullBitmapIdx] serialized size: "+str.getBytes().length/(1024*1024.0));
+            index.serialize(out);
 //            for (int i = 0; i < elementCount; i++) {
 //                assertTrue(index.contains(new String[]{"A", "B"},
 //                        new byte[][]{bytes[i][0], bytes[i][1]}));
@@ -113,7 +116,6 @@ public class FullBitmapIndexTest {
 //            }
             System.out.println();
         }
-        System.out.println(indexes.get(0));
     }
     @Test
     public void testCompare() throws IOException {
