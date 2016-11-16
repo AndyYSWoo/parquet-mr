@@ -181,7 +181,8 @@ public class FullBitmapIndex {
             comb += (column+"|");
         }
         for (String key : maps.keySet()) {
-            if(key.equals(comb)){
+//            if(key.equals(comb)){
+            if(key.startsWith(comb)){
                 return maps.get(key).contains(bytes);
             }
         }

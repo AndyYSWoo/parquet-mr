@@ -210,6 +210,7 @@ public class MultiDBitmapIndex {
     }
 
     private boolean findBitsInMap(UnifiedMap map, int level, int[][] indexes){
+        if(indexes[level] == null) return true;
         if(!map.isLast()){
             HashMap<Integer, UnifiedMap> higherMap = map.getMidMap();
             for (int idx : indexes[level]) {
@@ -234,6 +235,7 @@ public class MultiDBitmapIndex {
     }
 
     private long[] hash(byte[] element){
+        if(element == null) return null;
         long[] hashes = new long[saltCount];
         for(int i = 0; i < saltCount; ++i){
             long hash = salts[i];
@@ -253,6 +255,7 @@ public class MultiDBitmapIndex {
     }
 
     private int[] computeIndexes(long[] hashes){
+        if(hashes == null) return null;
         int[] indexes = new int[hashes.length];
         for (int i = 0; i < hashes.length; i++) {
             indexes[i] = (int)((hashes[i] & 0x7fffffffffffffffL) % m);

@@ -21,6 +21,7 @@ package org.apache.parquet.filter2.compat;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -66,10 +67,11 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
     DICTIONARY
   }
 
-  // TODO test the shit out of this
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
     if(!(CBFM.ON || FullBitmapIndex.ON)) return blocks;
-    if(blocks.get(0).getIndexTableStr() == null) return blocks;
+    // Only applying filters on indexed table
+    if(CBFM.ON && blocks.get(0).getIndexTableStr() == null) return blocks;
+    if(FullBitmapIndex.ON && blocks.get(0).index == null) return blocks;
     List<BlockMetaData> cadidateBlocks = new ArrayList<>();
     if(filter instanceof FilterCompat.FilterPredicateCompat){
       // only deal with FilterPredicateCompat
@@ -83,7 +85,6 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       else if(FullBitmapIndex.ON) indexedColumns = FullBitmapIndex.dimensions;
 
       String[] currentComb = new String[eqFilters.size()];
-
       byte[][] indexedColumnBytes = new byte[indexedColumns.length][];
       for(int j = 0; j < eqFilters.size(); ++j){
         Operators.Eq eqFilter = eqFilters.get(j);
@@ -96,7 +97,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           if(indexedColumns[i].equals(columnName)){
             Comparable value = eqFilter.getValue();
             if(value instanceof Binary){
-              indexedColumnBytes[i] = indexedColumnBytes[i] = ((Binary) value).getBytes();
+              indexedColumnBytes[i] = ((Binary) value).getBytes();
             }else if(value instanceof Integer){
               indexedColumnBytes[i] = ByteBuffer.allocate(4).putInt((Integer) value).array();
               ArrayUtils.reverse(indexedColumnBytes[i]);
@@ -140,6 +141,11 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           }
         }else if(FullBitmapIndex.ON){
           FullBitmapIndex index = block.index;
+          System.out.println("==========currentComb: "+currentComb);
+          System.out.println("==========values: ");
+          for (byte[] indexedColumnByte : indexedColumnBytes) {
+            System.out.println("==========: "+Arrays.toString(indexedColumnByte));
+          }
           if(index.contains(currentComb, indexedColumnBytes)){
             hitCount++;
             cadidateBlocks.add(block);
@@ -147,9 +153,20 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
         }
       }
       int skippedCount = blocks.size() - hitCount;
-      System.out.println("==========total "+blocks.size()+" blocks, "+hitCount+" blocks hit.");
+      writeSkipResults(skippedCount, blocks.size());
     }
     return cadidateBlocks;
+  }
+
+  private static void writeSkipResults(int skippedCount, int totalCount){
+    try {
+      PrintWriter pw = new PrintWriter(new FileWriter(new File("/Users/yongshangwu/work/out"), true));
+      pw.write("Task "+TaskContext.get().taskAttemptId()+": total "+totalCount+" blocks, "+skippedCount+" blocks skipped.\n");
+      pw.flush();
+      pw.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   private static void extractEqFilter(FilterPredicate filterPredicate, List<Operators.Eq> list){

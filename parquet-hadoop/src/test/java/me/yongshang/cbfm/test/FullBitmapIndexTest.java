@@ -252,4 +252,21 @@ public class FullBitmapIndexTest {
                 {2}
         }));
     }
+    @Test
+    public void testContainsNull(){
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A", "B", "C"}, new String[][]{new String[]{"B", "C"}});
+        FullBitmapIndex index = new FullBitmapIndex(10);
+        index.insert(new byte[][]{
+                {1},
+                {2},
+                {3}
+        });
+        assertFalse(index.contains(new String[]{"A"}, new byte[][]{
+                {3},
+                null,
+                null
+        }));
+    }
 }
