@@ -493,12 +493,17 @@ public class ParquetFileWriter {
     }
 
     if(CBFM.ON || FullBitmapIndex.ON){
-      // Decompress content
-      byte[] uncompressedByteArray = bytes.toByteArray();//decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
+      // Decompress content (or not)
+      byte[] originalBytes = bytes.toByteArray();
+      byte[] uncompressedByteArray = Arrays.copyOfRange(originalBytes, (int)headersSize, originalBytes.length);//decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
       // Find corresponding column
       String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
       for(int i = 0; i < indexedDimensions.length; ++i){
         if(indexedDimensions[i].equals(currentColumnName)){
+//          System.out.println("=====Column: "+currentColumnName);
+//          System.out.println("==========Headersize: "+headersSize);
+//          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, 0, (int)headersSize+10)));
+//          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, 10)));
           int stringOffset = 0;
           for(int j = 0; j < currentRecordCount; ++j){        // for every row
             switch (currentChunkType){
@@ -509,13 +514,14 @@ public class ParquetFileWriter {
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*8, j*8+8);
                 break;
               case BINARY:
-                if(stringOffset == 0){// ignore first str: 2000 3 15
+                if(stringOffset == 0){// ignore first str: 2000 3 15/7
                   int placeHolderLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, 0);
                   stringOffset = 4 + placeHolderLen;
                 }
                 int strLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, stringOffset);
                 stringOffset += 4;
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset+strLen);
+                System.out.println(Arrays.toString(rows[j][i]));
                 stringOffset += strLen;
                 break;
             }

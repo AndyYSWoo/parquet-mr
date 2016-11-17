@@ -119,7 +119,6 @@ public class CBFM{
 	private static final int PREDEF_SALT_COUNT = 128;	//原始种子数量（用于计算每个哈希采用的种子）
 	private long[] salt_ = null;						//每个哈希采用的种子（使用一个哈希函数，传入不同的种子，实现多个哈希函数）
 	// 1D table
-	// table_size_
 	private long totalBitSize = 1l;	// 总位数组大小[bit]
 	private int longLen;			// 总位数组大小[long]
 	private long[] bit_table_;		// 位数组，一维long
@@ -547,17 +546,6 @@ public class CBFM{
 		return hash;
 	}
 	
-	//求k m的最优解（m中含有特殊位）
-	void bloom_filter_find_optimal_parameters()
-	{
-		table_size_ = (long)(-predicted_element_count_ * Math.log(desired_false_positive_probability_) / (Math.log(2.0D) * Math.log(2.0D)));
-		salt_count_ = (int)Math.round(table_size_ / predicted_element_count_ * Math.log(2.0D));
-		
-		//开辟每维的特殊位
-		table_size_ += 1;
-		//如果table_size 不是64（long元素位数）  的整数倍，补齐
-//		table_size_ += (((table_size_ % BITS_PER_LONG) != 0) ? (BITS_PER_LONG - (table_size_ % BITS_PER_LONG)) : 0);
-	}
 
 	//计算每个哈希的种子，为什么这么算，我也不知道（这部分与矩阵、砍维度没关系）
 	void bloom_filter_generate_unique_salt()

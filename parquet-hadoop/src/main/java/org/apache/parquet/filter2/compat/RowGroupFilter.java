@@ -44,6 +44,7 @@ import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
+import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskContext$;
@@ -61,6 +62,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
   private final MessageType schema;
   private final List<FilterLevel> levels;
   private final ParquetFileReader reader;
+  public static String filePath;
 
   public enum FilterLevel {
     STATISTICS,
@@ -141,11 +143,6 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           }
         }else if(FullBitmapIndex.ON){
           FullBitmapIndex index = block.index;
-          System.out.println("==========currentComb: "+currentComb);
-          System.out.println("==========values: ");
-          for (byte[] indexedColumnByte : indexedColumnBytes) {
-            System.out.println("==========: "+Arrays.toString(indexedColumnByte));
-          }
           if(index.contains(currentComb, indexedColumnBytes)){
             hitCount++;
             cadidateBlocks.add(block);
@@ -160,7 +157,8 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   private static void writeSkipResults(int skippedCount, int totalCount){
     try {
-      PrintWriter pw = new PrintWriter(new FileWriter(new File("/Users/yongshangwu/work/out"), true));
+      File resultFile = new File(filePath);
+      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
       pw.write("Task "+TaskContext.get().taskAttemptId()+": total "+totalCount+" blocks, "+skippedCount+" blocks skipped.\n");
       pw.flush();
       pw.close();

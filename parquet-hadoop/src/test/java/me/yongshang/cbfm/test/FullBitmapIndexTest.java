@@ -67,9 +67,9 @@ public class FullBitmapIndexTest {
     }
     @Test
     public void testMassively() throws IOException {
-        int elementCount = 100000;
+        int elementCount = 800000;
 
-        String filePath = "/Users/yongshangwu/Desktop/index-count:"+elementCount;
+        String filePath = "/Users/yongshangwu/Desktop/[compressedCBFM]"+elementCount;
         DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
         // --Table partsup
         // ----A: int
@@ -267,6 +267,19 @@ public class FullBitmapIndexTest {
                 {3},
                 null,
                 null
+        }));
+    }
+    @Test
+    public void testNoReduced(){
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A"}, new String[][]{});
+        FullBitmapIndex index = new FullBitmapIndex(10);
+        index.insert(new byte[][]{
+                {1},
+        });
+        assertFalse(index.contains(new String[]{"A"}, new byte[][]{
+                {3},
         }));
     }
 }
