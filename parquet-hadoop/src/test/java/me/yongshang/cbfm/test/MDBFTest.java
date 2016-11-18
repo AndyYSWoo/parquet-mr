@@ -85,13 +85,12 @@ public class MDBFTest {
             index.insert(dimensions, bytes[i]);
             insertTime += (System.currentTimeMillis()-start);
         }
-        bytes = null;
         System.gc();
-//        for (int i = 0; i < elementCount; i++) {
-//            assertTrue(index.contains(dimensions,
-//                    new byte[][]{bytes[i][0], bytes[i][1], bytes[i][2]}));
-//
-//        }
+        for (int i = 0; i < elementCount; i++) {
+            assertTrue(index.contains(dimensions,
+                    new byte[][]{bytes[i][0], bytes[i][1], bytes[i][2]}));
+            assertFalse(index.contains(new String[]{"A"}, new byte[][]{{1,0,0,0}}));
+        }
     }
 
     @Test

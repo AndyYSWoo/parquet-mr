@@ -270,16 +270,31 @@ public class FullBitmapIndexTest {
         }));
     }
     @Test
-    public void testNoReduced(){
+    public void testNoReduced() throws IOException {
         FullBitmapIndex.ON = true;
         FullBitmapIndex.falsePositiveProbability = 0.1;
         FullBitmapIndex.setDimensions(new String[]{"A"}, new String[][]{});
-        FullBitmapIndex index = new FullBitmapIndex(10);
-        index.insert(new byte[][]{
-                {1},
-        });
+        FullBitmapIndex index = new FullBitmapIndex(200000);
+
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen/partsupp.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        for(int i = 0; i < 800000; ++i){
+            String line = br.readLine();
+//            if(0<=i && i<=200000){
+//            if(200000<=i && i<=400000){
+//            if(400000<=i && i<=600000){
+            if(200000<=i && i<=400000){
+                String[] tokens = line.split("\\|");
+                index.insert(new byte[][]{
+                        ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[0])).array(),
+//                        ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[1])).array(),
+//                        ByteBuffer.allocate(8).putDouble(Double.valueOf(tokens[3])).array()
+                });
+            }
+        }
+
         assertFalse(index.contains(new String[]{"A"}, new byte[][]{
-                {3},
+                ByteBuffer.allocate(4).putInt(1).array()
         }));
     }
 }

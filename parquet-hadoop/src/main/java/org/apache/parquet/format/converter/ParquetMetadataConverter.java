@@ -36,8 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.FullBitmapIndex;
+import me.yongshang.cbfm.MDBF;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
+import org.apache.parquet.filter2.compat.RowGroupFilter;
 import org.apache.parquet.format.PageEncodingStats;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.format.ColumnChunk;
@@ -70,6 +72,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type.Repetition;
 import org.apache.parquet.schema.TypeVisitor;
 import org.apache.parquet.schema.Types;
+import org.apache.spark.TaskContext;
 
 // TODO: This file has become too long!
 // TODO: Lets split it up: https://issues.apache.org/jira/browse/PARQUET-310
@@ -664,11 +667,9 @@ public class ParquetMetadataConverter {
         blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
       }
     }
+
+    long start = System.currentTimeMillis();
     if(FullBitmapIndex.ON){
-//      Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
-//      for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
-//        blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
-//      }
       DataInput in = new DataInputStream(from);
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
@@ -681,7 +682,36 @@ public class ParquetMetadataConverter {
         }
       }
     }
+    if(MDBF.ON){
+      DataInput in = new DataInputStream(from);
+      int indexCount = in.readInt();
+      for (int i = 0; i < indexCount; i++) {
+        long startPos = in.readLong();
+        MDBF index = new MDBF(in);
+        for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+          if(startPos == blockMetaData.getStartingPos()){
+            blockMetaData.mdbfIndex = index;
+          }
+        }
+      }
+    }
+    if(FullBitmapIndex.ON || MDBF.ON){
+      writeTime(System.currentTimeMillis() - start);
+    }
     return parquetMetadata;
+  }
+
+  private void writeTime(long time){
+    try {
+      File resultFile = new File(RowGroupFilter.filePath+"time");
+      if(!resultFile.exists()) resultFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      pw.write(time+" ms.\n");
+      pw.flush();
+      pw.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   public ParquetMetadata fromParquetMetadata(FileMetaData parquetMetadata) throws IOException {

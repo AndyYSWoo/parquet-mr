@@ -94,6 +94,10 @@ public class MDBF implements Serializable {
         }
     }
 
+    public void insert(byte[][] bytes){
+        insert(dimensions, bytes);
+    }
+
     private void bloom_filter_insert(int tableIndex, byte[] key_begin) {
         //由于java中没有指针，long也无法按引用传值，因此使用长度为1的数组
         long[] bit_index = {0};
@@ -254,4 +258,5 @@ public class MDBF implements Serializable {
             }
         }
     }
+
 }

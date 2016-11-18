@@ -19,6 +19,7 @@
 package org.apache.parquet.hadoop.metadata;
 
 import me.yongshang.cbfm.FullBitmapIndex;
+import me.yongshang.cbfm.MDBF;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +40,7 @@ public class BlockMetaData {
   private String path;
   private String indexTableStr;
   public FullBitmapIndex index;
+  public MDBF mdbfIndex;
   public BlockMetaData() {
   }
 

@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 
 import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.FullBitmapIndex;
+import me.yongshang.cbfm.MDBF;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -306,8 +307,12 @@ public class ParquetFileWriter {
 
     currentBlock = new BlockMetaData();
     currentRecordCount = recordCount;
-    if(CBFM.ON || FullBitmapIndex.ON) {
+    if(CBFM.ON) {
       rows = new byte[(int) recordCount][CBFM.dimension][];
+    }else if(FullBitmapIndex.ON){
+      rows = new byte[(int) recordCount][FullBitmapIndex.dimensions.length][];
+    }else if(MDBF.ON){
+      rows = new byte[(int) recordCount][MDBF.dimensions.length][];
     }
   }
 
@@ -335,7 +340,7 @@ public class ParquetFileWriter {
     // need to know what type of stats to initialize to
     // better way to do this?
     currentStatistics = Statistics.getStatsBasedOnType(currentChunkType);
-    if(CBFM.ON || FullBitmapIndex.ON){
+    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
       rowIndex = 0;
     }
   }
@@ -490,9 +495,11 @@ public class ParquetFileWriter {
       indexedDimensions = CBFM.indexedColumns;
     }else if(FullBitmapIndex.ON){
       indexedDimensions = FullBitmapIndex.dimensions;
+    }else if(MDBF.ON){
+      indexedDimensions = MDBF.dimensions;
     }
 
-    if(CBFM.ON || FullBitmapIndex.ON){
+    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
       // Decompress content (or not)
       byte[] originalBytes = bytes.toByteArray();
       byte[] uncompressedByteArray = Arrays.copyOfRange(originalBytes, (int)headersSize, originalBytes.length);//decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
@@ -501,9 +508,10 @@ public class ParquetFileWriter {
       for(int i = 0; i < indexedDimensions.length; ++i){
         if(indexedDimensions[i].equals(currentColumnName)){
 //          System.out.println("=====Column: "+currentColumnName);
-//          System.out.println("==========Headersize: "+headersSize);
-//          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, 0, (int)headersSize+10)));
-//          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, 10)));
+//          System.out.println("==========byte size: "+bytes.size()+", headersize: "+headersSize
+//                  +", uncompressedTotalPageSize: "+uncompressedTotalPageSize+", compressedTotalPageSize: "+compressedTotalPageSize);
+//          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, (int)headersSize, (int)headersSize+1000)));
+//          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, 1000)));
           int stringOffset = 0;
           for(int j = 0; j < currentRecordCount; ++j){        // for every row
             switch (currentChunkType){
@@ -520,8 +528,8 @@ public class ParquetFileWriter {
                 }
                 int strLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, stringOffset);
                 stringOffset += 4;
-                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset+strLen);
-                System.out.println(Arrays.toString(rows[j][i]));
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset + strLen);
+//                System.out.println(Arrays.toString(rows[j][i]));
                 stringOffset += strLen;
                 break;
             }
@@ -606,16 +614,24 @@ public class ParquetFileWriter {
     }
 
     if(FullBitmapIndex.ON){
-      FullBitmapIndex index = new FullBitmapIndex(currentRecordCount);
+      currentBlock.index = new FullBitmapIndex(currentRecordCount);
       if(rows[0][0] != null){
         for (byte[][] row : rows) {
-          index.insert(row);
+          currentBlock.index.insert(row);
         }
       }
-      currentBlock.index = index;
     }
+
+    if(MDBF.ON){
+      currentBlock.mdbfIndex = new MDBF(currentRecordCount);
+      if(rows[0][0] != null){
+        for (byte[][] row : rows) {
+          currentBlock.mdbfIndex.insert(row);
+        }
+      }
+    }
+    rows = null;
     blocks.add(currentBlock);
-    currentBlock = null;
   }
 
   private FSDataOutputStream getOut(Path filePath) throws IOException {
@@ -814,12 +830,22 @@ public class ParquetFileWriter {
     long footerIndex = out.getPos();
     org.apache.parquet.format.FileMetaData parquetMetadata = metadataConverter.toParquetMetadata(CURRENT_VERSION, footer);
     writeFileMetaData(parquetMetadata, out);
+    System.out.println("Bitmap on? "+FullBitmapIndex.ON);
     if(FullBitmapIndex.ON){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
         blockMetaData.index.serialize(out);
+      }
+    }
+
+    if(MDBF.ON){
+      List<BlockMetaData> blocks = footer.getBlocks();
+      out.writeInt(blocks.size());
+      for (BlockMetaData blockMetaData : blocks) {
+        out.writeLong(blockMetaData.getStartingPos());
+        blockMetaData.mdbfIndex.serialize(out);
       }
     }
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));

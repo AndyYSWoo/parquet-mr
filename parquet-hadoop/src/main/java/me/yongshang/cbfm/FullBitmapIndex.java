@@ -33,6 +33,7 @@ public class FullBitmapIndex {
     private long predictedCount;
     public static String[] dimensions;
     public static String[][] reducedDimensions;
+
     public static void setDimensions(String[] dimensions, String[][] reducedDimensions){
         FullBitmapIndex.dimensions = dimensions;
         FullBitmapIndex.reducedDimensions = reducedDimensions;

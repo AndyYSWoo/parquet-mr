@@ -210,7 +210,7 @@ public class MultiDBitmapIndex {
     }
 
     private boolean findBitsInMap(UnifiedMap map, int level, int[][] indexes){
-        if(indexes[level] == null) return true;
+        if(level >= indexes.length || indexes[level] == null) return true;
         if(!map.isLast()){
             HashMap<Integer, UnifiedMap> higherMap = map.getMidMap();
             for (int idx : indexes[level]) {
