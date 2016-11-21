@@ -67,7 +67,7 @@ public class FullBitmapIndexTest {
     }
     @Test
     public void testMassively() throws IOException {
-        int elementCount = 800000;
+        int elementCount = 10000;
 
         String filePath = "/Users/yongshangwu/Desktop/[compressedCBFM]"+elementCount;
         DataOutput out = new DataOutputStream(new FileOutputStream(filePath));

@@ -23,8 +23,11 @@ import static org.apache.parquet.format.Util.writeFileMetaData;
 import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.Map.Entry;
@@ -65,6 +68,8 @@ import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.TypeUtil;
+import org.xerial.snappy.Snappy;
+import org.xerial.snappy.SnappyFramedInputStream;
 
 /**
  * Internal implementation of the Parquet file writer as a block container
@@ -367,21 +372,6 @@ public class ParquetFileWriter {
     this.compressedLength += compressedPageSize + headerSize;
     if (DEBUG) LOG.debug(out.getPos() + ": write dictionary page content " + compressedPageSize);
     dictionaryPage.getBytes().writeAllTo(out);
-    // BELOW IS ALL BULLSHIT
-//    DictionaryValuesReader dicReader = new DictionaryValuesReader(
-//            dictionaryPage.getEncoding()
-//                    .initDictionary(currentColumnDescriptor, dictionaryPage));
-//    dicReader.initFromPage((int)currentRecordCount, dictionaryPage.getBytes().toByteArray(), 0);
-//    for (long i = 0; i < currentRecordCount; i++) {
-//      switch (currentChunkType){
-//        case INT32:
-//          System.out.println("========="+dicReader.readInteger());
-//          break;
-//        case DOUBLE:
-//          System.out.println("========="+dicReader.readDouble());
-//          break;
-//      }
-//    }
     encodingStatsBuilder.addDictEncoding(dictionaryPage.getEncoding());
     currentEncodings.add(dictionaryPage.getEncoding());
   }
@@ -502,16 +492,18 @@ public class ParquetFileWriter {
     if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
       // Decompress content (or not)
       byte[] originalBytes = bytes.toByteArray();
-      byte[] uncompressedByteArray = Arrays.copyOfRange(originalBytes, (int)headersSize, originalBytes.length);//decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
+//      byte[] uncompressedByteArray = Arrays.copyOfRange(originalBytes, (int) headersSize, originalBytes.length);
+      byte[] uncompressedByteArray = decompress(bytes, headersSize, compressedTotalPageSize, uncompressedTotalPageSize);
       // Find corresponding column
       String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
       for(int i = 0; i < indexedDimensions.length; ++i){
         if(indexedDimensions[i].equals(currentColumnName)){
-//          System.out.println("=====Column: "+currentColumnName);
-//          System.out.println("==========byte size: "+bytes.size()+", headersize: "+headersSize
-//                  +", uncompressedTotalPageSize: "+uncompressedTotalPageSize+", compressedTotalPageSize: "+compressedTotalPageSize);
-//          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, (int)headersSize, (int)headersSize+1000)));
-//          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, 1000)));
+          System.out.println("=====Column: "+currentColumnName);
+          System.out.println("==========byte size: "+bytes.size()+", headersize: "+headersSize
+                  +", uncompressedTotalPageSize: "+uncompressedTotalPageSize+", compressedTotalPageSize: "+compressedTotalPageSize);
+          System.out.println("==========uncompressedByteArrayBound: "+uncompressedByteArray.length);
+          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, 0, Math.min(originalBytes.length, 1000))));
+          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, Math.min(uncompressedByteArray.length, 1000))));
           int stringOffset = 0;
           for(int j = 0; j < currentRecordCount; ++j){        // for every row
             switch (currentChunkType){
@@ -522,6 +514,7 @@ public class ParquetFileWriter {
                 rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*8, j*8+8);
                 break;
               case BINARY:
+//                System.out.println("==========StringOff: "+stringOffset);
                 if(stringOffset == 0){// ignore first str: 2000 3 15/7
                   int placeHolderLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, 0);
                   stringOffset = 4 + placeHolderLen;
@@ -549,18 +542,157 @@ public class ParquetFileWriter {
     currentStatistics = totalStats;
   }
 
+  /**
+   * Same as the other writeDataPages,
+   * only added header info to strip to only data.
+   * @param dataRange
+   * @throws IOException
+   */
+  void writeDataPages(BytesInput bytes,
+                      long uncompressedTotalPageSize,
+                      long compressedTotalPageSize,
+                      Statistics totalStats,
+                      Set<Encoding> rlEncodings,
+                      Set<Encoding> dlEncodings,
+                      List<Encoding> dataEncodings,
+                      HashMap<Integer, Integer> dataRange) throws IOException {
+    state = state.write();
+    if (DEBUG) LOG.debug(out.getPos() + ": write data pages");
+    long headersSize = bytes.size() - compressedTotalPageSize;
+    this.uncompressedLength += uncompressedTotalPageSize + headersSize;
+    this.compressedLength += compressedTotalPageSize + headersSize;
+    if (DEBUG) LOG.debug(out.getPos() + ": write data pages content");
+
+    String[] indexedDimensions = null;
+    if(CBFM.ON){
+      indexedDimensions = CBFM.indexedColumns;
+    }else if(FullBitmapIndex.ON){
+      indexedDimensions = FullBitmapIndex.dimensions;
+    }else if(MDBF.ON){
+      indexedDimensions = MDBF.dimensions;
+    }
+
+    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
+      // Sort DataRange
+      ArrayList<Integer> keys = new ArrayList<>();
+      keys.addAll(dataRange.keySet());
+      Collections.sort(keys);
+      // Find corresponding column
+      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+      for(int i = 0; i < indexedDimensions.length; ++i){
+        if(indexedDimensions[i].equals(currentColumnName)){
+          // Decompress content (or not)
+          byte[] originalBytes = bytes.toByteArray();
+//          byte[] uncompressedByteArray = stripHeaders(originalBytes, (int)uncompressedLength, dataRange);
+          /*
+          System.out.println("=====Column: "+currentColumnName);
+          System.out.println("==========byte size: "+bytes.size()+", headersize: "+headersSize
+                  +", uncompressedTotalPageSize: "+uncompressedTotalPageSize+", compressedTotalPageSize: "+compressedTotalPageSize);
+          System.out.println("==========uncompressedByteArrayBound: "+uncompressedByteArray.length);
+          System.out.println("==========Original: "+Arrays.toString(Arrays.copyOfRange(originalBytes, 0, Math.min(originalBytes.length, 100))));
+          System.out.println("==========Uncompressed: "+Arrays.toString(Arrays.copyOfRange(uncompressedByteArray, 0, Math.min(uncompressedByteArray.length, 100))));
+          */
+          // Old way
+          /*
+          int stringOffset = 0;
+          for(int j = 0; j < currentRecordCount; ++j){        // for every row
+            switch (currentChunkType){
+              case INT32:
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*4, (j+1)*4);
+                break;
+              case DOUBLE:
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, j*8, j*8+8);
+                break;
+              case BINARY:
+//                if(stringOffset == 0){
+//                  int placeHolderLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, 0);
+//                  stringOffset = 4 + placeHolderLen;
+//                }
+                int strLen = BytesUtils.readIntLittleEndian(uncompressedByteArray, stringOffset);
+                stringOffset += 4;
+                rows[j][i] = Arrays.copyOfRange(uncompressedByteArray, stringOffset, stringOffset + strLen);
+                stringOffset += strLen;
+                break;
+            }
+          }
+          */
+          // New way, without creating new space
+          int offset = 0;
+          for (int j = 0; j < currentRecordCount; j++) {
+            offset = adjustOffset(offset, keys, dataRange);
+            switch (currentChunkType){
+              case INT32:
+                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset+4);
+                offset += 4;
+                break;
+              case DOUBLE:
+                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset+8);
+                offset += 8;
+                break;
+              case BINARY:
+                int strLen = BytesUtils.readIntLittleEndian(originalBytes, offset);
+                offset += 4;
+                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset + strLen);
+                offset += strLen;
+                break;
+            }
+          }
+          break;
+        }
+      }
+    }
+    bytes.writeAllTo(out);
+    encodingStatsBuilder.addDataEncodings(dataEncodings);
+    if (rlEncodings.isEmpty()) {
+      encodingStatsBuilder.withV2Pages();
+    }
+    currentEncodings.addAll(rlEncodings);
+    currentEncodings.addAll(dlEncodings);
+    currentEncodings.addAll(dataEncodings);
+    currentStatistics = totalStats;
+  }
+
+  /**
+   * Skip headers by adjusting offset rather than creating new arrays
+   * @param offset
+   * @param keys
+   * @param dataRange
+     * @return
+     */
+  private int adjustOffset(int offset, ArrayList<Integer> keys, HashMap<Integer, Integer> dataRange){
+    if(keys.isEmpty()) return offset;
+    int start = keys.get(0);
+    int len = dataRange.get(start);
+    if(offset == start){
+      offset += len;
+      keys.remove(0);
+    }
+    return offset;
+  }
+
+  private byte[] stripHeaders(byte[] bytes, int dataSize ,HashMap<Integer, Integer> dataRange){
+    ByteBuffer data = ByteBuffer.allocate(dataSize);
+    ArrayList<Integer> keys = new ArrayList<>();
+    keys.addAll(dataRange.keySet());
+    Collections.sort(keys);
+    for (int i = 0; i < keys.size(); i++) {
+      int offset = keys.get(i);
+      int len = dataRange.get(offset);
+      data.put(bytes, offset, len);
+    }
+    return data.array();
+  }
+
   private byte[] decompress(BytesInput compressed,
                             long headersSize,
                             long compressedTotalPageSize,
                             long uncompressedTotalPageSize) throws IOException {
-    CodecFactory.BytesDecompressor decompressor = new CodecFactory(new Configuration(), 0)
-            .createDecompressor(CompressionCodecName.SNAPPY);
+    CodecFactory.BytesDecompressor decompressor = new CodecFactory(new Configuration(), (int)compressedTotalPageSize)
+//            .createDecompressor(CompressionCodecName.SNAPPY);
+            .createDecompressor(CompressionCodecName.UNCOMPRESSED);
     BytesInput compressedBytes = BytesInput.from(compressed.toByteArray(), (int)headersSize, (int)compressedTotalPageSize);
-    // adding more mem may solve this
     BytesInput uncompressedBytes = decompressor.decompress(compressedBytes, (int)uncompressedTotalPageSize);
-    byte[] uncompressedByteArray = uncompressedBytes.toByteArray();
-//    if(CBFM.DEBUG) System.out.println("==========Revert: "+Arrays.toString(uncompressedByteArray));
-    return uncompressedByteArray;
+    return uncompressedBytes.toByteArray();
   }
 
   /**

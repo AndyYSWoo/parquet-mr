@@ -29,6 +29,7 @@ import me.yongshang.cbfm.CBFM;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.BytesInput;
+import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.bytes.ConcatenatingByteArrayCollector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Encoding;
@@ -43,6 +44,7 @@ import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.bytes.ByteBufferAllocator;
+import org.apache.parquet.schema.PrimitiveType;
 
 class ColumnChunkPageWriteStore implements PageWriteStore {
   private static final Log LOG = Log.getLog(ColumnChunkPageWriteStore.class);
@@ -56,6 +58,9 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
 
     private final ByteArrayOutputStream tempOutputStream = new ByteArrayOutputStream();
     private final ConcatenatingByteArrayCollector buf;
+    // Ugly hack, but I don't wanna create extra structures
+    // offset->length of header in buf
+    private HashMap<Integer, Integer> dataRange;
     private DictionaryPage dictionaryPage;
 
     private long uncompressedLength;
@@ -78,6 +83,7 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       this.compressor = compressor;
       this.allocator = allocator;
       this.buf = new ConcatenatingByteArrayCollector();
+      dataRange = new HashMap<>();
       this.totalStatistics = getStatsBasedOnType(this.path.getType());
     }
 
@@ -118,12 +124,16 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       this.totalStatistics.mergeStatistics(statistics);
       // by concatenating before collecting instead of collecting twice,
       // we only allocate one buffer to copy into instead of multiple.
-      buf.collect(BytesInput.concat(BytesInput.from(tempOutputStream), compressedBytes));
-//      if(CBFM.DEBUG) {
-//        System.out.println("==========Bytes uncompressed: " + Arrays.toString(bytes.toByteArray()));
-//        System.out.println("==========Bytes compressed: " + Arrays.toString(compressedBytes.toByteArray()));
-//        System.out.println("==========Buf after collect: " + Arrays.toString(this.buf.toByteArray()));
-//      }
+      BytesInput con = BytesInput.concat(BytesInput.from(tempOutputStream), compressedBytes);
+      int extraOffset = 0;
+      // Extra offset of string
+      if(path.getType() == PrimitiveType.PrimitiveTypeName.BINARY){
+        extraOffset += 4;
+        extraOffset += BytesUtils.readIntLittleEndian(compressedBytes.toByteArray(), 0);
+      }
+      dataRange.put((int)buf.size(), tempOutputStream.size()+extraOffset);
+      buf.collect(con);
+
       rlEncodings.add(rlEncoding);
       dlEncodings.add(dlEncoding);
       dataEncodings.add(valuesEncoding);
@@ -193,7 +203,7 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
         // tracking the dictionary encoding is handled in writeDictionaryPage
       }
       writer.writeDataPages(buf, uncompressedLength, compressedLength, totalStatistics,
-          rlEncodings, dlEncodings, dataEncodings);
+          rlEncodings, dlEncodings, dataEncodings, dataRange);
       writer.endColumn();
       if (INFO) {
         LOG.info(
