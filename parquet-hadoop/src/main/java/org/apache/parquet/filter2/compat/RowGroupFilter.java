@@ -71,6 +71,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
   }
 
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
+    if(blocks.isEmpty()) return blocks;
     if(!(CBFM.ON || FullBitmapIndex.ON || MDBF.ON)) return blocks;
     // Only applying filters on indexed table
     if(CBFM.ON && blocks.get(0).getIndexTableStr() == null) return blocks;
