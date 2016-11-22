@@ -308,4 +308,8 @@ public class MultiDBitmapIndex {
     public void serialize(DataOutput out) throws IOException {
         map.serialize(out);
     }
+
+    public void optimize(){
+        map.optimize();
+    }
 }

@@ -727,29 +727,16 @@ public class ParquetFileWriter {
     state = state.endBlock();
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
-    if(CBFM.ON){
-//      CBFM.predicted_element_count_ = (long)Math.ceil(currentRecordCount*0.5);// affect correctness?
-      CBFM cbfm = new CBFM(currentRecordCount);
-      if(rows[0][0] != null) {
-        for (byte[][] row : rows) {
-          ArrayList<Long> insertIndexes = cbfm.calculateIdxsForInsert(row);
-          cbfm.insert(insertIndexes);
-        }
-      }
-      Path filePath = new Path(file.getParent(), ".cbfm-"+file.getName()+"-"+currentBlock.getStartingPos());
-      FSDataOutputStream cbfmOut = getOut(filePath);
-      cbfmOut.write(cbfm.compressTable().getBytes());
-      cbfmOut.close();
-      cbfmOut = null;
-      cbfm = null;
-      currentBlock.setIndexTableStr(filePath.toString());
-    }
 
     if(FullBitmapIndex.ON){
       currentBlock.index = new FullBitmapIndex(currentRecordCount);
       if(rows[0][0] != null){
-        for (byte[][] row : rows) {
-          currentBlock.index.insert(row);
+//        for (byte[][] row : rows) {
+//          currentBlock.index.insert(row);
+//        }
+        for (int i = 0; i < rows.length; i++) {
+          currentBlock.index.insert(rows[i]);
+          rows[i] = null;
         }
       }
     }
@@ -932,18 +919,6 @@ public class ParquetFileWriter {
   public void end(Map<String, String> extraMetaData) throws IOException {
     state = state.end();
     if (DEBUG) LOG.debug(out.getPos() + ": end");
-    if(CBFM.ON){
-      // store table as String
-      for (BlockMetaData block : blocks) {
-        extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
-        block.setIndexTableStr(null);
-      }
-    }
-//    if(FullBitmapIndex.ON){
-//      for(BlockMetaData block: blocks){
-//        extraMetaData.put(String.valueOf(block.getStartingPos()), block.getIndexTableStr());
-//      }
-//    }
     System.out.println(blocks.size());
     ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);

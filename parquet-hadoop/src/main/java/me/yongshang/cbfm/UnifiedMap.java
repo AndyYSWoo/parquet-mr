@@ -182,4 +182,14 @@ public class UnifiedMap {
             }
         }
     }
+
+    public void optimize(){
+        if(isLast){
+            bitmap.runOptimize();
+        }else{
+            for (Integer key : midMap.keySet()) {
+                midMap.get(key).optimize();
+            }
+        }
+    }
 }

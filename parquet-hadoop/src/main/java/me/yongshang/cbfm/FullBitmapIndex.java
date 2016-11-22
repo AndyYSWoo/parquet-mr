@@ -231,4 +231,10 @@ public class FullBitmapIndex {
             index.serialize(out);
         }
     }
+
+    public void optimize(){
+        for (String key : maps.keySet()) {
+            maps.get(key).optimize();
+        }
+    }
 }
