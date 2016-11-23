@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 import org.apache.commons.lang.ArrayUtils;
@@ -33,6 +34,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
 import org.apache.parquet.filter2.compat.FilterCompat.NoOpFilter;
 import org.apache.parquet.filter2.compat.FilterCompat.Visitor;
@@ -64,6 +66,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
   private final List<FilterLevel> levels;
   private final ParquetFileReader reader;
   public static String filePath;
+  public static String query;
 
   public enum FilterLevel {
     STATISTICS,
@@ -72,14 +75,15 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
     if(blocks.isEmpty()) return blocks;
-    if(!(CBFM.ON || FullBitmapIndex.ON || MDBF.ON)) return blocks;
+    if(!(CBFM.ON || FullBitmapIndex.ON || MDBF.ON || CMDBF.ON)) return blocks;
     // Only applying filters on indexed table
-    if(CBFM.ON && blocks.get(0).getIndexTableStr() == null) return blocks;
-    if(FullBitmapIndex.ON && (blocks.get(0).index == null)) return blocks;
-    if(MDBF.ON && (blocks.get(0).mdbfIndex == null)) return blocks;
+    if (CBFM.ON && blocks.get(0).getIndexTableStr() == null) return blocks;
+    if (FullBitmapIndex.ON && (blocks.get(0).index == null)) return blocks;
+    if (MDBF.ON && (blocks.get(0).mdbfIndex == null)) return blocks;
+    if (CMDBF.ON && (blocks.get(0).cmdbfIndex == null)) return blocks;
 
     List<BlockMetaData> cadidateBlocks = new ArrayList<>();
-    if(filter instanceof FilterCompat.FilterPredicateCompat){
+    if (filter instanceof FilterCompat.FilterPredicateCompat) {
       // only deal with FilterPredicateCompat
       FilterCompat.FilterPredicateCompat filterPredicateCompat = (FilterCompat.FilterPredicateCompat) filter;
       FilterPredicate filterPredicate = filterPredicateCompat.getFilterPredicate();
@@ -87,35 +91,36 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       extractEqFilter(filterPredicate, eqFilters);
 
       String[] indexedColumns = null;
-      if(CBFM.ON) indexedColumns = CBFM.indexedColumns;
-      else if(FullBitmapIndex.ON) indexedColumns = FullBitmapIndex.dimensions;
-      else if(MDBF.ON) indexedColumns = MDBF.dimensions;
+      if (CBFM.ON) indexedColumns = CBFM.indexedColumns;
+      else if (FullBitmapIndex.ON) indexedColumns = FullBitmapIndex.dimensions;
+      else if (MDBF.ON) indexedColumns = MDBF.dimensions;
+      else if (CMDBF.ON) indexedColumns = CMDBF.dimensions;
 
       String[] currentComb = new String[eqFilters.size()];
       byte[][] indexedColumnBytes = new byte[indexedColumns.length][];
-      for(int j = 0; j < eqFilters.size(); ++j){
+      for (int j = 0; j < eqFilters.size(); ++j) {
         Operators.Eq eqFilter = eqFilters.get(j);
 
         String[] columnPath = eqFilter.getColumn().getColumnPath().toArray();
-        String columnName = columnPath[columnPath.length-1];
+        String columnName = columnPath[columnPath.length - 1];
         currentComb[j] = columnName;
 
-        for(int i = 0; i < indexedColumns.length; ++i){
-          if(indexedColumns[i].equals(columnName)){
+        for (int i = 0; i < indexedColumns.length; ++i) {
+          if (indexedColumns[i].equals(columnName)) {
             Comparable value = eqFilter.getValue();
-            if(value instanceof Binary){
+            if (value instanceof Binary) {
               indexedColumnBytes[i] = ((Binary) value).getBytes();
-            }else if(value instanceof Integer){
+            } else if (value instanceof Integer) {
               indexedColumnBytes[i] = ByteBuffer.allocate(4).putInt((Integer) value).array();
               ArrayUtils.reverse(indexedColumnBytes[i]);
-            }else if(value instanceof Long){
+            } else if (value instanceof Long) {
               indexedColumnBytes[i] = ByteBuffer.allocate(8).putLong((Long) value).array();
               ArrayUtils.reverse(indexedColumnBytes[i]);
-            }else if(value instanceof Float){
+            } else if (value instanceof Float) {
               indexedColumnBytes[i] = ByteBuffer.allocate(4).putFloat((Float) value).array();
               ArrayUtils.reverse(indexedColumnBytes[i]);
-            }else if(value instanceof Double){
-              indexedColumnBytes[i] = ByteBuffer.allocate(8).putDouble((Double)value).array();
+            } else if (value instanceof Double) {
+              indexedColumnBytes[i] = ByteBuffer.allocate(8).putDouble((Double) value).array();
               ArrayUtils.reverse(indexedColumnBytes[i]);
             }
           }
@@ -125,7 +130,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       long rowScanned = 0;
       long rowSkipped = 0;
       for (BlockMetaData block : blocks) {
-        if(CBFM.ON) {
+        if (CBFM.ON) {
           try {
             Path cbfmFile = new Path(block.getIndexTableStr());
             FileSystem fs = cbfmFile.getFileSystem(new Configuration());
@@ -148,40 +153,51 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           } catch (IOException e) {
             e.printStackTrace();
           }
-        }else if(FullBitmapIndex.ON){
+        } else if (FullBitmapIndex.ON) {
           FullBitmapIndex index = block.index;
-          if(index.contains(currentComb, indexedColumnBytes)){
+          if (index.contains(currentComb, indexedColumnBytes)) {
             blockHitCount++;
             cadidateBlocks.add(block);
             rowScanned += block.getRowCount();
-          }else{
+          } else {
             rowSkipped += block.getRowCount();
           }
-        }else if(MDBF.ON){
+        } else if (MDBF.ON) {
           MDBF index = block.mdbfIndex;
-          if(index.contains(currentComb, indexedColumnBytes)){
+          if (index.contains(currentComb, indexedColumnBytes)) {
             blockHitCount++;
             cadidateBlocks.add(block);
             rowScanned += block.getRowCount();
-          }else{
+          } else {
             rowSkipped += block.getRowCount();
+          }
+        } else if (CMDBF.ON){
+          CMDBF index = block.cmdbfIndex;
+          if (index.contains(currentComb, indexedColumnBytes)){
+            blockHitCount++;
+            cadidateBlocks.add(block);
+            rowScanned += block.getRowCount();
           }
         }
       }
       int skippedCount = blocks.size() - blockHitCount;
-      if(checkIndexed(currentComb)){
+      if (checkIndexed(currentComb)) {
         writeSkipResults(skippedCount, blocks.size(), rowScanned, rowSkipped);
       }
     }
     return cadidateBlocks;
   }
 
-  private static boolean checkIndexed(String[] columns){
+  public static boolean checkIndexed(String[] columns){
     String[] indexedColumns = null;
     if(FullBitmapIndex.ON){
       indexedColumns = FullBitmapIndex.dimensions;
     }else if(MDBF.ON){
       indexedColumns = MDBF.dimensions;
+    }else if(CMDBF.ON){
+      indexedColumns = CMDBF.dimensions;
+    }else{
+      return false;
     }
     for (String column : columns) {
       for (String indexedColumn : indexedColumns) {
@@ -191,9 +207,17 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
     return false;
   }
 
+  public static boolean checkIndexed(List<ColumnDescriptor> columnList){
+    String[] columns = new String[columnList.size()];
+    for (int i = 0; i < columnList.size(); i++) {
+      columns[i] = columnList.get(i).getPath()[0];
+    }
+    return RowGroupFilter.checkIndexed(columns);
+  }
+
   private static void writeSkipResults(int skippedCount, int totalCount, long rows, long rowSkipped){
     try {
-      File resultFile = new File(filePath+"skip");
+      File resultFile = new File(filePath+"query"+query+"-skip");
       if(!resultFile.exists()) resultFile.createNewFile();
       PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
       pw.write("Task "+TaskContext.get().taskAttemptId()

@@ -35,10 +35,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.filter2.compat.RowGroupFilter;
 import org.apache.parquet.format.PageEncodingStats;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
@@ -695,15 +697,31 @@ public class ParquetMetadataConverter {
         }
       }
     }
-    if(FullBitmapIndex.ON || MDBF.ON){
-      writeTime(System.currentTimeMillis() - start);
+    if(CMDBF.ON){
+      DataInput in = new DataInputStream(from);
+      int indexCount = in.readInt();
+      for (int i = 0; i < indexCount; i++) {
+        long startPos = in.readLong();
+        CMDBF index = new CMDBF(in);
+        for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+          if(startPos == blockMetaData.getStartingPos()){
+            blockMetaData.cmdbfIndex = index;
+          }
+        }
+      }
+    }
+    if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
+      List<ColumnDescriptor> columnList = parquetMetadata.getFileMetaData().getSchema().getColumns();
+      if(RowGroupFilter.checkIndexed(columnList)) {
+        writeTime(System.currentTimeMillis() - start);
+      }
     }
     return parquetMetadata;
   }
 
   private void writeTime(long time){
     try {
-      File resultFile = new File(RowGroupFilter.filePath+"time");
+      File resultFile = new File(RowGroupFilter.filePath+"query"+RowGroupFilter.query+"-index-load-time");
       if(!resultFile.exists()) resultFile.createNewFile();
       PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
       pw.write(time+" ms.\n");

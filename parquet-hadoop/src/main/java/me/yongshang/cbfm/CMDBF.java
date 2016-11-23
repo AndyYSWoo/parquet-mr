@@ -22,132 +22,129 @@ package me.yongshang.cbfm;
  * Created by yongshangwu on 2016/11/17.
  */
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Random;
 //import java.util.Random;
 
 public class CMDBF implements Serializable {
-    private static final long serialVersionUID = 1L;
-    static final long[] bit_mask = {
-            0x0000000000000001L,
-            0x0000000000000002L,
-            0x0000000000000004L,
-            0x0000000000000008L,
-            0x0000000000000010L,
-            0x0000000000000020L,
-            0x0000000000000040L,
-            0x0000000000000080L,
-            0x0000000000000100L,
-            0x0000000000000200L,
-            0x0000000000000400L,
-            0x0000000000000800L,
-            0x0000000000001000L,
-            0x0000000000002000L,
-            0x0000000000004000L,
-            0x0000000000008000L,
-            0x0000000000010000L,
-            0x0000000000020000L,
-            0x0000000000040000L,
-            0x0000000000080000L,
-            0x0000000000100000L,
-            0x0000000000200000L,
-            0x0000000000400000L,
-            0x0000000000800000L,
-            0x0000000001000000L,
-            0x0000000002000000L,
-            0x0000000004000000L,
-            0x0000000008000000L,
-            0x0000000010000000L,
-            0x0000000020000000L,
-            0x0000000040000000L,
-            0x0000000080000000L,
-            0x0000000100000000L,
-            0x0000000200000000L,
-            0x0000000400000000L,
-            0x0000000800000000L,
-            0x0000001000000000L,
-            0x0000002000000000L,
-            0x0000004000000000L,
-            0x0000008000000000L,
-            0x0000010000000000L,
-            0x0000020000000000L,
-            0x0000040000000000L,
-            0x0000080000000000L,
-            0x0000100000000000L,
-            0x0000200000000000L,
-            0x0000400000000000L,
-            0x0000800000000000L,
-            0x0001000000000000L,
-            0x0002000000000000L,
-            0x0004000000000000L,
-            0x0008000000000000L,
-            0x0010000000000000L,
-            0x0020000000000000L,
-            0x0040000000000000L,
-            0x0080000000000000L,
-            0x0100000000000000L,
-            0x0200000000000000L,
-            0x0400000000000000L,
-            0x0800000000000000L,
-            0x1000000000000000L,
-            0x2000000000000000L,
-            0x4000000000000000L,
-            0x8000000000000000L,
-    };
-    static final int BITS_PER_LONG = 64;
-    static final int PREDEF_SALT_COUNT = 128;
-    //通过运行c语言的bloomfilter，种子设置为1000时得到如下hash运算的初始值
-    long[] salt_ = null;//{0x77777b60, 0xdddde1c6, 0x47ae1863, 0xa1d50c24, 0xe1e1e5ca, 0x99cc9db5, 0xd4974ff7, 0xf0c3f4ac, 0xbbbb9dc6, 0x9d1b4163, 0x35918f24, 0x908403ca, 0x786f882, 0x84ed4f7, 0xfa4a62ac, 0x16a907a4, 0x40fc6063, 0x4e3f524, 0x288b08ca, 0xa6640e82, 0x8d827ec8, 0x16f27eea, 0xe19834a6};
-    long[] bit_table_;
-    long predicted_element_count_;        //集合元素个数
-    long inserted_element_count_ = 0;         //已插入元素个数
-    //	int random_seed_;
-    double desired_false_positive_probability_;   //错误率
-    int salt_count_;                     //hash函数个数
-    long table_size_;                     //位数组大小（bit单位）
+    public static  boolean ON = false;
+    public static double desiredFalsePositiveProbability;
+    public static String[] dimensions;
 
+    private int saltCount;                     //hash函数个数
+    private long[] salts;
+    private long predictedElementCount;
+    private long tableSize;
+    private int longLen;
 
-    //long predicted_element_count,, int random_seed , double desired_false_positive_probability
-    public CMDBF(long predicted_element_count, double desired_false_positive_probability)
-    {
-        predicted_element_count_ = predicted_element_count;
-        desired_false_positive_probability_ = desired_false_positive_probability;
+    private long[][] bitTables;
 
-        salt_count_ = 6;
-        table_size_ = 134217728 / 4l;
-        salt_ = new long [salt_count_];
-        bit_table_ = new long[(int)(table_size_ / BITS_PER_LONG)];
+    static final long[] bit_mask = Util.bit_mask;
+    static final int BITS_PER_LONG = Util.BITS_PER_LONG;
+    static final int PREDEF_SALT_COUNT = Util.PREDEF_SALT_COUNT;
+
+    public CMDBF(DataInput in) throws IOException{
+        predictedElementCount = in.readLong();
+        tableSize = in.readLong();
+        longLen = (int) (tableSize / BITS_PER_LONG);
+        bitTables = new long[dimensions.length+1][longLen];
+
+        for(int i = 0; i < dimensions.length+1; ++i){
+            for (int j = 0; j < longLen; j++) {
+                bitTables[i][j] = in.readLong();
+            }
+        }
     }
 
+    public CMDBF(long predictedCount)
+    {
+        predictedElementCount = predictedCount;
 
-    public void bloom_filter_insert(byte[] key_begin, long[] idxToModify)
+        initParams();
+        bloom_filter_generate_unique_salt();
+        this.bitTables = new long[dimensions.length+1][];
+        for (int i = 0; i <= dimensions.length; i++) {
+            bitTables[i] = new long[longLen];
+        }
+    }
+
+    private void initParams(){
+        // function count k
+        double f = this.desiredFalsePositiveProbability;
+        int k = (int) Math.floor(-Math.log(f) / Math.log(2)); // k = -log2(f)
+        this.saltCount = k;
+        this.salts = new long[saltCount];
+        // decide m
+        long n = predictedElementCount;
+        this.tableSize = (int) Math.ceil(n * (1/Math.log(2)) * (Math.log(1/f)/Math.log(2)));
+        this.tableSize = ((tableSize + 63) / 64) * 64;
+        this.longLen = (int) (tableSize / BITS_PER_LONG);
+    }
+
+    public void insert(byte[][] bytes){
+        insert(dimensions, bytes);
+    }
+
+    public void insert(String[] keys, byte[][] bytes){
+        long[] idxToModify = new long[saltCount];
+        for (int i = 0; i < keys.length; i++) {
+            for (int j = 0; j < dimensions.length; j++) {
+                if(keys[i].equals(dimensions[j])){
+                    bloom_filter_insert(j, bytes[i], idxToModify);
+                }
+            }
+        }
+        insertByIdxs(idxToModify);
+    }
+
+    public void bloom_filter_insert(int tableIndex, byte[] key_begin, long[] idxToModify)
     {
         //由于java中没有指针，long也无法按引用传值，因此使用长度为1的数组
         long[] bit_index = {0};
         long[] bit = {0};
         int i = 0;
-        for(i = 0; i < salt_count_; ++i)
+        for(i = 0; i < saltCount; ++i)
         {
             bloom_filter_compute_indices(
-                    bloom_filter_hash_ap(key_begin, key_begin.length, salt_[i]),
-                    table_size_, bit_index, bit);
+                    bloom_filter_hash_ap(key_begin, key_begin.length, salts[i]),
+                    tableSize, bit_index, bit);
             idxToModify[i] ^= bit_index[0];
-            bit_table_[(int)(bit_index[0] / BITS_PER_LONG)] |= bit_mask[(int)bit[0]];
+            bitTables[tableIndex][(int)(bit_index[0] / BITS_PER_LONG)] |= bit_mask[(int)bit[0]];
         }
-        ++inserted_element_count_;
     }
 
     public void insertByIdxs(long[] idxs) {
         for (long l : idxs) {
-            l %= table_size_;
-            bit_table_[(int)(l / BITS_PER_LONG)] |= bit_mask[(int)(l % BITS_PER_LONG)];
+            l %= tableSize;
+            bitTables[bitTables.length-1][(int)(l / BITS_PER_LONG)] |= bit_mask[(int)(l % BITS_PER_LONG)];
+        }
+    }
+
+    public boolean contains(String[] keys, byte[][] bytes){
+        long[] idxToModify = new long[saltCount];
+        for (int i = 0; i < keys.length; i++) {
+            for (int j = 0; j < dimensions.length; j++) {
+                if(keys[i].equals(dimensions[j])){
+                    if(!bloom_filter_contains(j, bytes[i], idxToModify)){
+                        return false;
+                    }
+                }
+            }
+        }
+        if(keys.length == dimensions.length){
+            return containsByIdxs(idxToModify);
+        }else{
+            return true;
         }
     }
 
     public boolean containsByIdxs(long[] idxs) {
         for (long l : idxs) {
-            l %= table_size_;
-            if (0 == (bit_table_[(int) (l / BITS_PER_LONG)] & bit_mask[(int)(l % BITS_PER_LONG)])) {
+            l %= tableSize;
+            if (0 == (bitTables[bitTables.length-1][(int) (l / BITS_PER_LONG)] & bit_mask[(int)(l % BITS_PER_LONG)])) {
                 return false;
             }
         }
@@ -160,21 +157,21 @@ public class CMDBF implements Serializable {
      *          1  exist
      *          0  not exist
      */
-    public boolean bloom_filter_contains(byte[] key_begin, long[] idxToModify)
+    public boolean bloom_filter_contains(int tableIndex, byte[] key_begin, long[] idxToModify)
     {
         //由于java中没有指针，long也无法按引用传值，因此使用长度为1的数组
         long[] bit_index = {0};
         long[] bit = {0};
         int i = 0;
-        for(i = 0; i < salt_count_; ++i)
+        for(i = 0; i < saltCount; ++i)
         {
             bloom_filter_compute_indices(
-                    bloom_filter_hash_ap(key_begin, key_begin.length, salt_[i]), //利用salt_和length计算hash
-                    table_size_,
+                    bloom_filter_hash_ap(key_begin, key_begin.length, salts[i]), //利用salt_和length计算hash
+                    tableSize,
                     bit_index,
                     bit);
             idxToModify[i] ^= bit_index[0];
-            if ((bit_table_[(int) (bit_index[0] / BITS_PER_LONG)] & bit_mask[(int) bit[0]]) != bit_mask[(int) bit[0]]) {
+            if ((bitTables[tableIndex][(int) (bit_index[0] / BITS_PER_LONG)] & bit_mask[(int) bit[0]]) != bit_mask[(int) bit[0]]) {
                 return false;
             }
         }
@@ -246,11 +243,11 @@ public class CMDBF implements Serializable {
         };
         //int i = 0;
 
-        if (salt_count_ <= PREDEF_SALT_COUNT) {
-            for (int j = 0; j < salt_count_; j++) {
-                salt_[j] = predef_salt[j];
+        if (saltCount <= PREDEF_SALT_COUNT) {
+            for (int j = 0; j < saltCount; j++) {
+                salts[j] = predef_salt[j];
             }
-            for(int i = 0; i < salt_count_; ++i)
+            for(int i = 0; i < saltCount; ++i)
             {
 			/*
 			  Note:
@@ -258,7 +255,7 @@ public class CMDBF implements Serializable {
 			  so as to allow for the generation of unique bloom filter
 			  instances.
 			*/
-                salt_[i] = salt_[i] * salt_[(i + 3) % salt_count_];// + random_seed_
+                salts[i] = salts[i] * salts[(i + 3) % saltCount];// + random_seed_
             }
         }
         else
@@ -266,7 +263,7 @@ public class CMDBF implements Serializable {
             int i = 0;
             int j = 0;
             for (int j2 = 0; j2 < PREDEF_SALT_COUNT; j2++) {
-                salt_[j2] = predef_salt[j2];
+                salts[j2] = predef_salt[j2];
             }
             //srand(random_seed_);
             Random random = new Random();//random_seed_
@@ -278,19 +275,28 @@ public class CMDBF implements Serializable {
                 }
                 boolean found = false;
                 for(j = 0; j < i; j++) {
-                    if(current_salt == salt_[j]) {
+                    if(current_salt == salts[j]) {
                         found = true;
                         break;
                     }
                 }
                 if(!found) {
-                    salt_[i] = current_salt;
+                    salts[i] = current_salt;
                     i++;
                 }
             }
         }
     }
 
+    public void serialize(DataOutput out) throws IOException{
+        out.writeLong(predictedElementCount);
+        out.writeLong(tableSize);
+        for (int i = 0; i < bitTables.length; i++) {
+            for (int j = 0; j < bitTables[i].length; j++) {
+                out.writeLong(bitTables[i][j]);
+            }
+        }
+    }
 
 
 }

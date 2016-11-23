@@ -23,16 +23,14 @@ import static org.apache.parquet.format.Util.writeFileMetaData;
 import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.Map.Entry;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 import org.apache.hadoop.conf.Configuration;
@@ -53,6 +51,7 @@ import org.apache.parquet.column.EncodingStats;
 import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.column.values.dictionary.DictionaryValuesReader;
+import org.apache.parquet.filter2.compat.RowGroupFilter;
 import org.apache.parquet.hadoop.ParquetOutputFormat.JobSummaryLevel;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -318,6 +317,8 @@ public class ParquetFileWriter {
       rows = new byte[(int) recordCount][FullBitmapIndex.dimensions.length][];
     }else if(MDBF.ON){
       rows = new byte[(int) recordCount][MDBF.dimensions.length][];
+    }else if(CMDBF.ON){
+      rows = new byte[(int) recordCount][CMDBF.dimensions.length][];
     }
   }
 
@@ -345,7 +346,7 @@ public class ParquetFileWriter {
     // need to know what type of stats to initialize to
     // better way to do this?
     currentStatistics = Statistics.getStatsBasedOnType(currentChunkType);
-    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
+    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
       rowIndex = 0;
     }
   }
@@ -570,9 +571,11 @@ public class ParquetFileWriter {
       indexedDimensions = FullBitmapIndex.dimensions;
     }else if(MDBF.ON){
       indexedDimensions = MDBF.dimensions;
+    }else if(CMDBF.ON){
+      indexedDimensions = CMDBF.dimensions;
     }
 
-    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON){
+    if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
       // Sort DataRange
       ArrayList<Integer> keys = new ArrayList<>();
       keys.addAll(dataRange.keySet());
@@ -727,13 +730,10 @@ public class ParquetFileWriter {
     state = state.endBlock();
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
-
+    long start = System.currentTimeMillis();
     if(FullBitmapIndex.ON){
       currentBlock.index = new FullBitmapIndex(currentRecordCount);
       if(rows[0][0] != null){
-//        for (byte[][] row : rows) {
-//          currentBlock.index.insert(row);
-//        }
         for (int i = 0; i < rows.length; i++) {
           currentBlock.index.insert(rows[i]);
           rows[i] = null;
@@ -749,8 +749,33 @@ public class ParquetFileWriter {
         }
       }
     }
+
+    if(CMDBF.ON){
+      currentBlock.cmdbfIndex = new CMDBF(currentRecordCount);
+      if(rows[0][0] != null){
+        for (byte[][] row : rows) {
+          currentBlock.cmdbfIndex.insert(row);
+        }
+      }
+    }
+    if(RowGroupFilter.checkIndexed(schema.getColumns())){
+      writeTime(System.currentTimeMillis() - start);
+    }
     rows = null;
     blocks.add(currentBlock);
+  }
+
+  private void writeTime(long time){
+    try {
+      File resultFile = new File(RowGroupFilter.filePath+"index-create-time");
+      if(!resultFile.exists()) resultFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      pw.write(time+" ms.\n");
+      pw.flush();
+      pw.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   private FSDataOutputStream getOut(Path filePath) throws IOException {
@@ -937,7 +962,7 @@ public class ParquetFileWriter {
     long footerIndex = out.getPos();
     org.apache.parquet.format.FileMetaData parquetMetadata = metadataConverter.toParquetMetadata(CURRENT_VERSION, footer);
     writeFileMetaData(parquetMetadata, out);
-    System.out.println("Bitmap on? "+FullBitmapIndex.ON);
+    long start = out.getPos();
     if(FullBitmapIndex.ON){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
@@ -946,7 +971,6 @@ public class ParquetFileWriter {
         blockMetaData.index.serialize(out);
       }
     }
-
     if(MDBF.ON){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
@@ -955,9 +979,36 @@ public class ParquetFileWriter {
         blockMetaData.mdbfIndex.serialize(out);
       }
     }
+    if(CMDBF.ON){
+      List<BlockMetaData> blocks = footer.getBlocks();
+      out.writeInt(blocks.size());
+      for (BlockMetaData blockMetaData : blocks) {
+        out.writeLong(blockMetaData.getStartingPos());
+        blockMetaData.cmdbfIndex.serialize(out);
+      }
+    }
+    if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
+      footer.getFileMetaData().getSchema().getColumns();
+      List<ColumnDescriptor> columnList = footer.getFileMetaData().getSchema().getColumns();
+      if(RowGroupFilter.checkIndexed(columnList)){
+        writeSize(out.getPos()-start);
+      }
+    }
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));
     BytesUtils.writeIntLittleEndian(out, (int) (out.getPos() - footerIndex));
     out.write(MAGIC);
+  }
+  private static void writeSize(long size){
+    try {
+      File resultFile = new File(RowGroupFilter.filePath+"index-space");
+//      if(!resultFile.exists()) resultFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      pw.write(size/(1024*1024.0)+" MB.\n");
+      pw.flush();
+      pw.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
