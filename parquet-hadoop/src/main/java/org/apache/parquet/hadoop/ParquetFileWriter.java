@@ -114,6 +114,7 @@ public class ParquetFileWriter {
 
   private final MessageType schema;
   private final FSDataOutputStream out;
+//  private final FSDataOutputStream
   private final AlignmentStrategy alignment;
 
   // file data
@@ -969,6 +970,7 @@ public class ParquetFileWriter {
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
         blockMetaData.index.serialize(out);
+        blockMetaData.index = null;
       }
     }
     if(MDBF.ON){
@@ -977,6 +979,7 @@ public class ParquetFileWriter {
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
         blockMetaData.mdbfIndex.serialize(out);
+        blockMetaData.mdbfIndex = null;
       }
     }
     if(CMDBF.ON){
@@ -985,6 +988,7 @@ public class ParquetFileWriter {
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
         blockMetaData.cmdbfIndex.serialize(out);
+        blockMetaData.cmdbfIndex = null;
       }
     }
     if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
