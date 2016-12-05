@@ -97,7 +97,7 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
       else if (CMDBF.ON) indexedColumns = CMDBF.dimensions;
 
       String[] currentComb = new String[eqFilters.size()];
-      byte[][] indexedColumnBytes = new byte[indexedColumns.length][];
+      byte[][] indexedColumnBytes = new byte[eqFilters.size()][];
       for (int j = 0; j < eqFilters.size(); ++j) {
         Operators.Eq eqFilter = eqFilters.get(j);
 
@@ -109,19 +109,19 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
           if (indexedColumns[i].equals(columnName)) {
             Comparable value = eqFilter.getValue();
             if (value instanceof Binary) {
-              indexedColumnBytes[i] = ((Binary) value).getBytes();
+              indexedColumnBytes[j] = ((Binary) value).getBytes();
             } else if (value instanceof Integer) {
-              indexedColumnBytes[i] = ByteBuffer.allocate(4).putInt((Integer) value).array();
-              ArrayUtils.reverse(indexedColumnBytes[i]);
+              indexedColumnBytes[j] = ByteBuffer.allocate(4).putInt((Integer) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[j]);
             } else if (value instanceof Long) {
-              indexedColumnBytes[i] = ByteBuffer.allocate(8).putLong((Long) value).array();
-              ArrayUtils.reverse(indexedColumnBytes[i]);
+              indexedColumnBytes[j] = ByteBuffer.allocate(8).putLong((Long) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[j]);
             } else if (value instanceof Float) {
-              indexedColumnBytes[i] = ByteBuffer.allocate(4).putFloat((Float) value).array();
-              ArrayUtils.reverse(indexedColumnBytes[i]);
+              indexedColumnBytes[j] = ByteBuffer.allocate(4).putFloat((Float) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[j]);
             } else if (value instanceof Double) {
-              indexedColumnBytes[i] = ByteBuffer.allocate(8).putDouble((Double) value).array();
-              ArrayUtils.reverse(indexedColumnBytes[i]);
+              indexedColumnBytes[j] = ByteBuffer.allocate(8).putDouble((Double) value).array();
+              ArrayUtils.reverse(indexedColumnBytes[j]);
             }
           }
         }

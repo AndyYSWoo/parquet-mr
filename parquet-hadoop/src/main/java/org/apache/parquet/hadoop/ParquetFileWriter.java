@@ -745,8 +745,9 @@ public class ParquetFileWriter {
     if(MDBF.ON){
       currentBlock.mdbfIndex = new MDBF(currentRecordCount);
       if(rows[0][0] != null){
-        for (byte[][] row : rows) {
-          currentBlock.mdbfIndex.insert(row);
+        for (int i = 0; i < rows.length; i++) {
+          currentBlock.mdbfIndex.insert(rows[i]);
+          rows[i] = null;
         }
       }
     }
@@ -754,8 +755,9 @@ public class ParquetFileWriter {
     if(CMDBF.ON){
       currentBlock.cmdbfIndex = new CMDBF(currentRecordCount);
       if(rows[0][0] != null){
-        for (byte[][] row : rows) {
-          currentBlock.cmdbfIndex.insert(row);
+        for (int i = 0; i < rows.length; i++) {
+          currentBlock.cmdbfIndex.insert(rows[i]);
+          rows[i] = null;
         }
       }
     }

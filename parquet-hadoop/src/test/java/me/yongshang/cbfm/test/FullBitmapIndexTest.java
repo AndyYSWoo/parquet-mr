@@ -19,6 +19,7 @@
 package me.yongshang.cbfm.test;
 
 import me.yongshang.cbfm.FullBitmapIndex;
+import me.yongshang.cbfm.MDBF;
 import me.yongshang.cbfm.MultiDBitmapIndex;
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
@@ -296,5 +297,45 @@ public class FullBitmapIndexTest {
         assertFalse(index.contains(new String[]{"A"}, new byte[][]{
                 ByteBuffer.allocate(4).putInt(1).array()
         }));
+    }
+
+    @Test
+    public void fixTest() throws IOException{
+        int elementCount = 277051;
+        FullBitmapIndex.ON = true;
+        FullBitmapIndex.falsePositiveProbability = 0.1;
+        FullBitmapIndex.setDimensions(new String[]{"A", "B", "C"}, new String[][]{{"A", "C"}});
+        FullBitmapIndex index = new FullBitmapIndex(elementCount);
+
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen/part.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        for(int i = 0; i < elementCount; ++i){
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            index.insert(new byte[][]{
+                    ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[5])).array(),
+                    tokens[3].getBytes(),
+                    tokens[6].getBytes()
+            });
+        }
+
+        String serializePath = "/Users/yongshangwu/Desktop/temp";
+        File serializeFile = new File(serializePath);
+        DataOutput out = new DataOutputStream(new FileOutputStream(serializeFile));
+        index.serialize(out);
+        DataInput in = new DataInputStream(new FileInputStream(serializeFile));
+        FullBitmapIndex serialIndex = new FullBitmapIndex(in);
+        assertTrue(serialIndex.contains(new String[]{"B", "C"}, new byte[][]{
+                "Brand#55".getBytes(),
+                "SM BAG".getBytes()
+        }));
+        assertFalse(serialIndex.contains(new String[]{"B", "C"}, new byte[][]{
+                "GIVEAFUCK".getBytes(),
+                "SUCKADICK".getBytes()
+        }));
+        assertFalse(serialIndex.contains(new String[]{"B"}, new byte[][]{
+                "GIVEAFUCK".getBytes(),
+        }));
+        serializeFile.delete();
     }
 }

@@ -182,12 +182,11 @@ public class FullBitmapIndex {
             comb += (column+"|");
         }
         for (String key : maps.keySet()) {
-//            if(key.equals(comb)){
             if(key.startsWith(comb)){
                 return maps.get(key).contains(bytes);
             }
         }
-        // if combination not indexed, give possibaly false positive result.
+        // if combination not indexed, give possibly false positive result.
         return true;
     }
 
