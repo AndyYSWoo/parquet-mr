@@ -38,11 +38,13 @@ import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
+import org.apache.hadoop.fs.*;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.filter2.compat.RowGroupFilter;
 import org.apache.parquet.format.PageEncodingStats;
+import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.format.ColumnChunk;
 import org.apache.parquet.format.ColumnMetaData;
@@ -721,9 +723,9 @@ public class ParquetMetadataConverter {
 
   private void writeTime(long time){
     try {
-      File resultFile = new File(RowGroupFilter.filePath+"query"+RowGroupFilter.query+"-index-load-time");
-      if(!resultFile.exists()) resultFile.createNewFile();
-      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      FileSystem fs = ParquetFileWriter.getFS();
+      Path path = new Path(RowGroupFilter.filePath+"query"+RowGroupFilter.query+"-index-load-time");
+      PrintWriter pw = new PrintWriter(fs.create(path));
       pw.write(time+" ms.\n");
       pw.flush();
       pw.close();

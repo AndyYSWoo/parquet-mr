@@ -44,6 +44,7 @@ import org.apache.parquet.filter2.predicate.Operators;
 import org.apache.parquet.filter2.predicate.SchemaCompatibilityValidator;
 import org.apache.parquet.filter2.statisticslevel.StatisticsFilter;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
@@ -217,9 +218,9 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   private static void writeSkipResults(int skippedCount, int totalCount, long rows, long rowSkipped){
     try {
-      File resultFile = new File(filePath+"query"+query+"-skip");
-      if(!resultFile.exists()) resultFile.createNewFile();
-      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      FileSystem fs = ParquetFileWriter.getFS();
+      Path path = new Path(filePath+"query"+query+"-skip");
+      PrintWriter pw = new PrintWriter(fs.create(path));
       pw.write("Task "+TaskContext.get().taskAttemptId()
               +": total "+totalCount+" blocks, "+skippedCount+" blocks skipped; "
               +rows+" rows scanned, "+rowSkipped+" rows skipped.\n");

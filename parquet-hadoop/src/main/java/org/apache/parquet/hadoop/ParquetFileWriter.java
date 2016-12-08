@@ -202,6 +202,12 @@ public class ParquetFileWriter {
 
   private STATE state = STATE.NOT_STARTED;
 
+  public static FileSystem getFS() throws IOException {
+    Configuration conf = new Configuration();
+    conf.set("fs.defaultFS", "hdfs://tina:9000");
+    return FileSystem.get(conf);
+  }
+
   /**
    * @param configuration Hadoop configuration
    * @param schema the schema of the data
@@ -770,9 +776,9 @@ public class ParquetFileWriter {
 
   private void writeTime(long time){
     try {
-      File resultFile = new File(RowGroupFilter.filePath+"index-create-time");
-      if(!resultFile.exists()) resultFile.createNewFile();
-      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      FileSystem fs = getFS();
+      Path path = new Path(RowGroupFilter.filePath+"index-create-time");
+      PrintWriter pw = new PrintWriter(fs.create(path));
       pw.write(time+" ms.\n");
       pw.flush();
       pw.close();
@@ -1006,9 +1012,9 @@ public class ParquetFileWriter {
   }
   private static void writeSize(long size){
     try {
-      File resultFile = new File(RowGroupFilter.filePath+"index-space");
-//      if(!resultFile.exists()) resultFile.createNewFile();
-      PrintWriter pw = new PrintWriter(new FileWriter(resultFile, true));
+      FileSystem fs = getFS();
+      Path path = new Path(RowGroupFilter.filePath+"index-space");
+      PrintWriter pw = new PrintWriter(fs.create(path));
       pw.write(size/(1024*1024.0)+" MB.\n");
       pw.flush();
       pw.close();
