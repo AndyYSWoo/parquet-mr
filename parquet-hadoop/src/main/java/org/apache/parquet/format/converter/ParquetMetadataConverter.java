@@ -671,9 +671,10 @@ public class ParquetMetadataConverter {
         blockMetaData.setIndexTableStr(metadata.get(String.valueOf(blockMetaData.getStartingPos())));
       }
     }
-
+    List<ColumnDescriptor> columnList = parquetMetadata.getFileMetaData().getSchema().getColumns();
+    boolean checked =RowGroupFilter.checkIndexed(columnList);
     long start = System.currentTimeMillis();
-    if(FullBitmapIndex.ON){
+    if(FullBitmapIndex.ON && checked){
       DataInput in = new DataInputStream(from);
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
@@ -686,7 +687,7 @@ public class ParquetMetadataConverter {
         }
       }
     }
-    if(MDBF.ON){
+    if(MDBF.ON && checked){
       DataInput in = new DataInputStream(from);
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
@@ -699,7 +700,7 @@ public class ParquetMetadataConverter {
         }
       }
     }
-    if(CMDBF.ON){
+    if(CMDBF.ON && checked){
       DataInput in = new DataInputStream(from);
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
@@ -713,8 +714,7 @@ public class ParquetMetadataConverter {
       }
     }
     if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
-      List<ColumnDescriptor> columnList = parquetMetadata.getFileMetaData().getSchema().getColumns();
-      if(RowGroupFilter.checkIndexed(columnList)) {
+      if(checked) {
         writeTime(System.currentTimeMillis() - start);
       }
     }
@@ -723,9 +723,13 @@ public class ParquetMetadataConverter {
 
   private void writeTime(long time){
     try {
-      FileSystem fs = ParquetFileWriter.getFS();
-      Path path = new Path(RowGroupFilter.filePath+"query"+RowGroupFilter.query+"-index-load-time");
-      PrintWriter pw = new PrintWriter(fs.create(path));
+//      FileSystem fs = ParquetFileWriter.getFS();
+//      Path path = new Path(RowGroupFilter.filePath+"index-load-time");
+//      FSDataOutputStream recordOut = fs.exists(path) ? fs.append(path) : fs.create(path);
+//      PrintWriter pw = new PrintWriter(recordOut);
+      File localFile = new File("/opt/record/"+RowGroupFilter.getIndex()+"/index-load-time");
+      if(!localFile.exists()) localFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(localFile, true));
       pw.write(time+" ms.\n");
       pw.flush();
       pw.close();

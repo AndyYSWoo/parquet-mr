@@ -32,6 +32,7 @@ import me.yongshang.cbfm.MDBF;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -66,7 +67,8 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
   private final MessageType schema;
   private final List<FilterLevel> levels;
   private final ParquetFileReader reader;
-  public static String filePath;
+  public static String getIndex(){ return FullBitmapIndex.ON ? "cbfm":(MDBF.ON ? "mdbf": CMDBF.ON ? "cmdbf" : "off"); }
+  public static String filePath = "hdfs://tina:9000/record/"+getIndex()+"/";
   public static String query;
 
   public enum FilterLevel {
@@ -218,9 +220,13 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
 
   private static void writeSkipResults(int skippedCount, int totalCount, long rows, long rowSkipped){
     try {
-      FileSystem fs = ParquetFileWriter.getFS();
-      Path path = new Path(filePath+"query"+query+"-skip");
-      PrintWriter pw = new PrintWriter(fs.create(path));
+//      FileSystem fs = ParquetFileWriter.getFS();
+//      Path path = new Path(filePath+"skip");
+//      FSDataOutputStream recordOut = fs.exists(path) ? fs.append(path) : fs.create(path);
+//      PrintWriter pw = new PrintWriter(recordOut);
+      File localFile = new File("/opt/record/"+RowGroupFilter.getIndex()+"/skip");
+      if(!localFile.exists()) localFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(localFile, true));
       pw.write("Task "+TaskContext.get().taskAttemptId()
               +": total "+totalCount+" blocks, "+skippedCount+" blocks skipped; "
               +rows+" rows scanned, "+rowSkipped+" rows skipped.\n");

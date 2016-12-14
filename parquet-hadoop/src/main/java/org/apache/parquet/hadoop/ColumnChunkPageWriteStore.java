@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.*;
 
 import me.yongshang.cbfm.CBFM;
+import me.yongshang.cbfm.FullBitmapIndex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.Log;
 import org.apache.parquet.bytes.BytesInput;
@@ -45,6 +46,8 @@ import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.bytes.ByteBufferAllocator;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 
 class ColumnChunkPageWriteStore implements PageWriteStore {
   private static final Log LOG = Log.getLog(ColumnChunkPageWriteStore.class);

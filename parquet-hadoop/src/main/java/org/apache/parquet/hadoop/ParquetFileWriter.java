@@ -19,6 +19,7 @@
 package org.apache.parquet.hadoop;
 
 import static org.apache.parquet.Log.DEBUG;
+import static org.apache.parquet.Log.INFO;
 import static org.apache.parquet.format.Util.writeFileMetaData;
 import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
@@ -205,6 +206,8 @@ public class ParquetFileWriter {
   public static FileSystem getFS() throws IOException {
     Configuration conf = new Configuration();
     conf.set("fs.defaultFS", "hdfs://tina:9000");
+    conf.addResource("/opt/hadoop-2.7.2/etc/hadoop/core-site.xml");
+    conf.addResource("/opt/hadoop-2.7.2/etc/hadoop/hdfs-site.xml");
     return FileSystem.get(conf);
   }
 
@@ -581,7 +584,6 @@ public class ParquetFileWriter {
     }else if(CMDBF.ON){
       indexedDimensions = CMDBF.dimensions;
     }
-
     if(CBFM.ON || FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
       // Sort DataRange
       ArrayList<Integer> keys = new ArrayList<>();
@@ -737,8 +739,9 @@ public class ParquetFileWriter {
     state = state.endBlock();
     if (DEBUG) LOG.debug(out.getPos() + ": end block");
     currentBlock.setRowCount(currentRecordCount);
+    boolean checked = RowGroupFilter.checkIndexed(schema.getColumns());
     long start = System.currentTimeMillis();
-    if(FullBitmapIndex.ON){
+    if(FullBitmapIndex.ON && checked){
       currentBlock.index = new FullBitmapIndex(currentRecordCount);
       if(rows[0][0] != null){
         for (int i = 0; i < rows.length; i++) {
@@ -748,7 +751,7 @@ public class ParquetFileWriter {
       }
     }
 
-    if(MDBF.ON){
+    if(MDBF.ON && checked){
       currentBlock.mdbfIndex = new MDBF(currentRecordCount);
       if(rows[0][0] != null){
         for (int i = 0; i < rows.length; i++) {
@@ -758,7 +761,7 @@ public class ParquetFileWriter {
       }
     }
 
-    if(CMDBF.ON){
+    if(CMDBF.ON && checked){
       currentBlock.cmdbfIndex = new CMDBF(currentRecordCount);
       if(rows[0][0] != null){
         for (int i = 0; i < rows.length; i++) {
@@ -767,8 +770,8 @@ public class ParquetFileWriter {
         }
       }
     }
-    if(RowGroupFilter.checkIndexed(schema.getColumns())){
-      writeTime(System.currentTimeMillis() - start);
+    if(checked){
+        writeTime(System.currentTimeMillis() - start);
     }
     rows = null;
     blocks.add(currentBlock);
@@ -776,9 +779,13 @@ public class ParquetFileWriter {
 
   private void writeTime(long time){
     try {
-      FileSystem fs = getFS();
-      Path path = new Path(RowGroupFilter.filePath+"index-create-time");
-      PrintWriter pw = new PrintWriter(fs.create(path));
+//      FileSystem fs = getFS();
+//      Path path = new Path(RowGroupFilter.filePath+"index-create-time");
+//      FSDataOutputStream recordOut = fs.exists(path) ? fs.append(path) : fs.create(path);
+//      PrintWriter pw = new PrintWriter(recordOut);
+      File localFile = new File("/opt/record/"+RowGroupFilter.getIndex()+"/index-create-time");
+      if(!localFile.exists()) localFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(localFile, true));
       pw.write(time+" ms.\n");
       pw.flush();
       pw.close();
@@ -1012,9 +1019,13 @@ public class ParquetFileWriter {
   }
   private static void writeSize(long size){
     try {
-      FileSystem fs = getFS();
-      Path path = new Path(RowGroupFilter.filePath+"index-space");
-      PrintWriter pw = new PrintWriter(fs.create(path));
+//      FileSystem fs = getFS();
+//      Path path = new Path(RowGroupFilter.filePath+"index-space");
+//      FSDataOutputStream recordOut = fs.exists(path) ? fs.append(path) : fs.create(path);
+//      PrintWriter pw = new PrintWriter(recordOut);
+      File localFile = new File("/opt/record/"+RowGroupFilter.getIndex()+"/index-space");
+      if(!localFile.exists()) localFile.createNewFile();
+      PrintWriter pw = new PrintWriter(new FileWriter(localFile, true));
       pw.write(size/(1024*1024.0)+" MB.\n");
       pw.flush();
       pw.close();
