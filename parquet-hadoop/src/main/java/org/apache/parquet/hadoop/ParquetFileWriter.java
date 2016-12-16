@@ -978,8 +978,11 @@ public class ParquetFileWriter {
     long footerIndex = out.getPos();
     org.apache.parquet.format.FileMetaData parquetMetadata = metadataConverter.toParquetMetadata(CURRENT_VERSION, footer);
     writeFileMetaData(parquetMetadata, out);
+    footer.getFileMetaData().getSchema().getColumns();
+    List<ColumnDescriptor> columnList = footer.getFileMetaData().getSchema().getColumns();
+    boolean checked = RowGroupFilter.checkIndexed(columnList);
     long start = out.getPos();
-    if(FullBitmapIndex.ON){
+    if(FullBitmapIndex.ON && checked){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
@@ -988,7 +991,7 @@ public class ParquetFileWriter {
         blockMetaData.index = null;
       }
     }
-    if(MDBF.ON){
+    if(MDBF.ON && checked){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
@@ -997,7 +1000,7 @@ public class ParquetFileWriter {
         blockMetaData.mdbfIndex = null;
       }
     }
-    if(CMDBF.ON){
+    if(CMDBF.ON && checked){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
@@ -1006,12 +1009,8 @@ public class ParquetFileWriter {
         blockMetaData.cmdbfIndex = null;
       }
     }
-    if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
-      footer.getFileMetaData().getSchema().getColumns();
-      List<ColumnDescriptor> columnList = footer.getFileMetaData().getSchema().getColumns();
-      if(RowGroupFilter.checkIndexed(columnList)){
-        writeSize(out.getPos()-start);
-      }
+    if(checked){
+      writeSize(out.getPos()-start);
     }
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));
     BytesUtils.writeIntLittleEndian(out, (int) (out.getPos() - footerIndex));

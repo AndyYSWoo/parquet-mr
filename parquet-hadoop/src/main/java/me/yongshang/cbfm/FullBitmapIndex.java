@@ -27,7 +27,7 @@ import java.util.*;
  * Created by yongshangwu on 2016/11/8.
  */
 public class FullBitmapIndex {
-    public static boolean ON = true;
+    public static boolean ON = false;
 
     public static double falsePositiveProbability = 0.1;
     private long predictedCount;

@@ -30,7 +30,7 @@ import java.util.Random;
 //import java.util.Random;
 
 public class MDBF implements Serializable {
-    public static boolean ON = false;
+    public static boolean ON = true;
     public static double desiredFalsePositiveProbability = 0.1;
     public static String[] dimensions = new String[]
 //            {"p_type", "p_brand", "p_container"};
