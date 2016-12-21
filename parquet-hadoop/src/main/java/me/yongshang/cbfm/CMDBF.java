@@ -33,8 +33,8 @@ public class CMDBF implements Serializable {
     public static  boolean ON = false;
     public static double desiredFalsePositiveProbability = 0.1;
     public static String[] dimensions = new String[]
-//            {"p_type", "p_brand", "p_container"};
-            {"sip", "dip", "nip"};
+            {"p_type", "p_brand", "p_container"};
+//            {"sip", "dip", "nip"};
 
     private int saltCount;                     //hash函数个数
     private long[] salts;
@@ -59,6 +59,8 @@ public class CMDBF implements Serializable {
                 bitTables[i][j] = in.readLong();
             }
         }
+        initParams();
+        bloom_filter_generate_unique_salt();
     }
 
     public CMDBF(long predictedCount)
@@ -82,7 +84,7 @@ public class CMDBF implements Serializable {
         // decide m
         long n = predictedElementCount;
         this.tableSize = (int) Math.ceil(n * (1/Math.log(2)) * (Math.log(1/f)/Math.log(2)));
-        this.tableSize = ((tableSize + 63) / 64) * 64;
+        this.tableSize = ((tableSize + 63) / 64) * 64 - 64;// degrade mdbfs
         this.longLen = (int) (tableSize / BITS_PER_LONG);
     }
 

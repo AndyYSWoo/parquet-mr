@@ -978,7 +978,6 @@ public class ParquetFileWriter {
     long footerIndex = out.getPos();
     org.apache.parquet.format.FileMetaData parquetMetadata = metadataConverter.toParquetMetadata(CURRENT_VERSION, footer);
     writeFileMetaData(parquetMetadata, out);
-    footer.getFileMetaData().getSchema().getColumns();
     List<ColumnDescriptor> columnList = footer.getFileMetaData().getSchema().getColumns();
     boolean checked = RowGroupFilter.checkIndexed(columnList);
     long start = out.getPos();
@@ -987,8 +986,10 @@ public class ParquetFileWriter {
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
+        start = out.getPos();
         blockMetaData.index.serialize(out);
         blockMetaData.index = null;
+        writeSize(out.getPos()-start);
       }
     }
     if(MDBF.ON && checked){
@@ -996,7 +997,9 @@ public class ParquetFileWriter {
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
+        start = out.getPos();
         blockMetaData.mdbfIndex.serialize(out);
+        writeSize(out.getPos()-start);
         blockMetaData.mdbfIndex = null;
       }
     }
@@ -1005,12 +1008,11 @@ public class ParquetFileWriter {
       out.writeInt(blocks.size());
       for (BlockMetaData blockMetaData : blocks) {
         out.writeLong(blockMetaData.getStartingPos());
+        start = out.getPos();
         blockMetaData.cmdbfIndex.serialize(out);
+        writeSize(out.getPos()-start);
         blockMetaData.cmdbfIndex = null;
       }
-    }
-    if(checked){
-      writeSize(out.getPos()-start);
     }
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));
     BytesUtils.writeIntLittleEndian(out, (int) (out.getPos() - footerIndex));

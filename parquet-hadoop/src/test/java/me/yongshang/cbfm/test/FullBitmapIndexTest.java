@@ -28,6 +28,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -337,5 +338,34 @@ public class FullBitmapIndexTest {
                 "GIVEAFUCK".getBytes(),
         }));
         serializeFile.delete();
+    }
+
+    @Test
+    public void testDnsSize() throws  IOException{
+        int elementCount =681220;
+        String filePath = "/Users/yongshangwu/Desktop/[DNS]"+elementCount;
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
+
+        String[] dimensions = new String[]{"A", "B", "C"};
+        String[][] reducedDimensions = new String[][]{
+                new String[]{"B", "C"},
+        };
+        FullBitmapIndex index = new FullBitmapIndex(0.1, elementCount, dimensions, reducedDimensions);
+        Random random = new Random();
+        for (int i = 0; i < elementCount; i++) {
+            byte[][] bytes = new byte[dimensions.length][];
+            for(int j = 0; j < 3; ++j){
+                String ip = "";
+                for(int k = 0; k < 4; ++k){
+                    ip += random.nextInt(255);
+                    if(k != 3) ip += ".";
+                }
+                bytes[j] = ip.getBytes();
+            }
+            index.insert(bytes);
+            if(i%(elementCount/100) == 0)
+                System.out.println(i/(elementCount/100)+"%");
+        }
+        index.serialize(out);
     }
 }

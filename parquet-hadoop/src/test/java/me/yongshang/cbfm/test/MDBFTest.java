@@ -46,10 +46,8 @@ public class MDBFTest {
                 {3}
         });
 
-        assertFalse(index.contains(MDBF.dimensions, new byte[][]{
+        assertTrue(index.contains(new String[]{"A"}, new byte[][]{
                 {7},
-                {2},
-                {3}
         }));
     }
 
@@ -136,5 +134,43 @@ public class MDBFTest {
                     new byte[][]{bytes[i][0], bytes[i][1], bytes[i][2]}));
 
         }
+    }
+
+    @Test
+    public void testReal() throws IOException {
+        int elementCount = 188101;
+        MDBF.ON = true;
+        MDBF.desiredFalsePositiveProbability = 0.1;
+        MDBF.dimensions = new String[]{"A", "B", "C"};
+        MDBF index = new MDBF(elementCount);
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen-uniform/part.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        for(int i = 0; i < elementCount; i ++){
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            byte[][] bytes = new byte[3][];
+            bytes[0] = tokens[4].getBytes();
+            bytes[1] = tokens[3].getBytes();
+            bytes[2] = tokens[6].getBytes();
+            index.insert(MDBF.dimensions, bytes);
+        }
+        index.serialize(new DataOutputStream(new FileOutputStream(new File("/Users/yongshangwu/Desktop/temptest"))));
+        MDBF newIndex = new MDBF(new DataInputStream(new FileInputStream(new File("/Users/yongshangwu/Desktop/temptest"))));
+        assertFalse(newIndex.contains(new String[]{"A"}, new byte[][]{
+                "PROMO PLATED TIN 82".getBytes()
+        }));
+
+    }
+    @Test
+    public void testM() throws Exception{
+        int elementCount = 188101;
+        MDBF.ON = true;
+        MDBF.ON = true;
+        MDBF.desiredFalsePositiveProbability = 0.1;
+        MDBF.dimensions = new String[]{"A", "B", "C"};
+        MDBF mdbf = new MDBF(elementCount);
+
+        FullBitmapIndex cbfm = new FullBitmapIndex(0.1, elementCount, new String[]{"A", "B", "C"}, new String[][]{{"B", "C"}});
+        System.out.println("");
     }
 }

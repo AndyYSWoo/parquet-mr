@@ -679,7 +679,9 @@ public class ParquetMetadataConverter {
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
         long startPos = in.readLong();
+        start = System.currentTimeMillis();
         FullBitmapIndex index = new FullBitmapIndex(in);
+        writeTime(System.currentTimeMillis() - start);
         for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
           if(startPos == blockMetaData.getStartingPos()){
             blockMetaData.index = index;
@@ -692,7 +694,9 @@ public class ParquetMetadataConverter {
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
         long startPos = in.readLong();
+        start = System.currentTimeMillis();
         MDBF index = new MDBF(in);
+        writeTime(System.currentTimeMillis() - start);
         for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
           if(startPos == blockMetaData.getStartingPos()){
             blockMetaData.mdbfIndex = index;
@@ -705,17 +709,14 @@ public class ParquetMetadataConverter {
       int indexCount = in.readInt();
       for (int i = 0; i < indexCount; i++) {
         long startPos = in.readLong();
+        start = System.currentTimeMillis();
         CMDBF index = new CMDBF(in);
+        writeTime(System.currentTimeMillis() - start);
         for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
           if(startPos == blockMetaData.getStartingPos()){
             blockMetaData.cmdbfIndex = index;
           }
         }
-      }
-    }
-    if(FullBitmapIndex.ON || MDBF.ON || CMDBF.ON){
-      if(checked) {
-        writeTime(System.currentTimeMillis() - start);
       }
     }
     return parquetMetadata;

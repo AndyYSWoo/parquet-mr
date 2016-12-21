@@ -84,7 +84,6 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
     if (FullBitmapIndex.ON && (blocks.get(0).index == null)) return blocks;
     if (MDBF.ON && (blocks.get(0).mdbfIndex == null)) return blocks;
     if (CMDBF.ON && (blocks.get(0).cmdbfIndex == null)) return blocks;
-
     List<BlockMetaData> cadidateBlocks = new ArrayList<>();
     if (filter instanceof FilterCompat.FilterPredicateCompat) {
       // only deal with FilterPredicateCompat
@@ -180,6 +179,8 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
             blockHitCount++;
             cadidateBlocks.add(block);
             rowScanned += block.getRowCount();
+          }else{
+            rowSkipped += block.getRowCount();
           }
         }
       }

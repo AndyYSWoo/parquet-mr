@@ -30,11 +30,11 @@ import java.util.Random;
 //import java.util.Random;
 
 public class MDBF implements Serializable {
-    public static boolean ON = true;
+    public static boolean ON = false;
     public static double desiredFalsePositiveProbability = 0.1;
     public static String[] dimensions = new String[]
-//            {"p_type", "p_brand", "p_container"};
-            {"sip", "dip", "nip"};
+            {"p_type", "p_brand", "p_container"};
+//            {"sip", "dip", "nip"};
 
     private long[] salts = null;
     private long predictedElementCount;
@@ -59,6 +59,8 @@ public class MDBF implements Serializable {
                 bitTables[i][j] = in.readLong();
             }
         }
+        initParams();
+        bloom_filter_generate_unique_salt();
     }
 
     public MDBF(long predictedElementCount) {
@@ -82,7 +84,7 @@ public class MDBF implements Serializable {
         // decide m
         long n = predictedElementCount;
         this.tableSize = (int) Math.ceil(n * (1/Math.log(2)) * (Math.log(1/f)/Math.log(2)));
-        this.tableSize = ((tableSize + 63) / 64) * 64;
+        this.tableSize = ((tableSize + 63) / 64) * 64 - 64; // degrade mdbfs
         this.longLen = (int) (tableSize / BITS_PER_LONG);
     }
 
