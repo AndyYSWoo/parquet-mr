@@ -27,16 +27,16 @@ import java.util.*;
  * Created by yongshangwu on 2016/11/8.
  */
 public class FullBitmapIndex {
-    public static boolean ON = false;
+    public static boolean ON = true;
 
     public static double falsePositiveProbability = 0.1;
     private long predictedCount;
     public static String[] dimensions = new String[]
-            {"p_type", "p_brand", "p_container"};
-//                {"sip", "dip", "nip"};
+//            {"p_brand", "p_type","p_container"};
+                {"sip", "dip", "nip"};
     public static String[][] reducedDimensions = new String[][]
-        {{"p_type", "p_container"}};
-//        {{"dip", "nip"}};
+//        {{"p_type", "p_container"}};
+        {{"dip", "nip"}};
 
     public static void setDimensions(String[] dimensions, String[][] reducedDimensions){
         FullBitmapIndex.dimensions = dimensions;
@@ -114,8 +114,28 @@ public class FullBitmapIndex {
             ArrayList<ArrayList<String>> combinations = new ArrayList<>();
             combine(dimensions, 0, len, new ArrayList<String>(), combinations);
             for (ArrayList<String> result : combinations) {
+                // if reduce any dimensions, the larger containing dimensions should be reduced too
+                boolean containAllReduced = true;
+                for(String[] oneRed : reducedDimensions){
+                    for(String red : oneRed){
+                        if(!result.contains(red)){
+                            containAllReduced = false;
+                        }
+                    }
+                }
+                if(containAllReduced) continue;
+
+                // the ugliest hack I have ever done, only support 3D
+                for(String exsistentCom : maps.keySet()){
+                    if(exsistentCom.startsWith(result.get(0)) && result.size() >= 2){
+                        String temp = result.remove(1);
+                        result.add(0, temp);
+                    }
+                }
+
                 String currentComb = "";
                 for (String str : result) currentComb += (str+"|");
+
                 // check if reduced first
                 boolean survive = true;
                 for (String reducedStr : reducedStrs) {
@@ -134,7 +154,7 @@ public class FullBitmapIndex {
                 }
                 if(!survive) continue;
                 maps.put(currentComb, new MultiDBitmapIndex(falsePositiveProbability, predictedCount, len));
-//                System.out.println(currentComb);
+                System.out.println(currentComb);
             }
         }
     }
@@ -190,6 +210,23 @@ public class FullBitmapIndex {
                 return maps.get(key).contains(bytes);
             }
         }
+        // again...
+        String temp = columns[0];
+        columns[0] = columns[1];
+        columns[1] = temp;
+        byte[] tempBytes = bytes[0];
+        bytes[0] = bytes[1];
+        bytes[1] = tempBytes;
+        comb = "";
+        for (String column : columns) {
+            comb += (column+"|");
+        }
+        for (String key : maps.keySet()) {
+            if(key.startsWith(comb)){
+                return maps.get(key).contains(bytes);
+            }
+        }
+
         // if combination not indexed, give possibly false positive result.
         return true;
     }

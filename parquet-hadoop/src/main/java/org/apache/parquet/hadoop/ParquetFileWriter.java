@@ -981,6 +981,7 @@ public class ParquetFileWriter {
     List<ColumnDescriptor> columnList = footer.getFileMetaData().getSchema().getColumns();
     boolean checked = RowGroupFilter.checkIndexed(columnList);
     long start = out.getPos();
+    long allStart = out.getPos();
     if(FullBitmapIndex.ON && checked){
       List<BlockMetaData> blocks = footer.getBlocks();
       out.writeInt(blocks.size());
@@ -1014,6 +1015,7 @@ public class ParquetFileWriter {
         blockMetaData.cmdbfIndex = null;
       }
     }
+    System.out.println("whole: "+(out.getPos()-allStart));
     if (DEBUG) LOG.debug(out.getPos() + ": footer length = " + (out.getPos() - footerIndex));
     BytesUtils.writeIntLittleEndian(out, (int) (out.getPos() - footerIndex));
     out.write(MAGIC);

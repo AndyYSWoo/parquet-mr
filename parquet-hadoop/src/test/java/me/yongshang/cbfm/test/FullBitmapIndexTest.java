@@ -342,15 +342,12 @@ public class FullBitmapIndexTest {
 
     @Test
     public void testDnsSize() throws  IOException{
-        int elementCount =681220;
+        int elementCount =190485;
         String filePath = "/Users/yongshangwu/Desktop/[DNS]"+elementCount;
         DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
 
         String[] dimensions = new String[]{"A", "B", "C"};
-        String[][] reducedDimensions = new String[][]{
-                new String[]{"B", "C"},
-        };
-        FullBitmapIndex index = new FullBitmapIndex(0.1, elementCount, dimensions, reducedDimensions);
+        FullBitmapIndex index = new FullBitmapIndex(elementCount);
         Random random = new Random();
         for (int i = 0; i < elementCount; i++) {
             byte[][] bytes = new byte[dimensions.length][];
@@ -364,8 +361,24 @@ public class FullBitmapIndexTest {
             }
             index.insert(bytes);
             if(i%(elementCount/100) == 0)
-                System.out.println(i/(elementCount/100)+"%");
+                System.out.println(i+", "+i/(elementCount/100)+"%");
         }
         index.serialize(out);
+    }
+
+    @Test
+    public void optimizeTest() throws Exception{
+//        String[] dimensions = { "p_type", "p_brand", "p_container"};
+//        String[] dimensions = {"sip", "dip", "nip"};
+        String[] dimensions = {"A", "B", "C"};
+//        String[][] reducedDimensions ={{"p_type", "p_container"}};
+//        String[][] reducedDimensions ={{"dip", "nip"}};
+        String[][] reducedDimensions ={{"B", "C"}};
+
+        FullBitmapIndex index = new FullBitmapIndex(0.1, 1000, dimensions, reducedDimensions);
+
+        index.insert(new byte[][]{{1},{2},{3}});
+        assertTrue(index.contains(new String[]{"A", "C"}, new byte[][]{{1}, {3}}));
+        System.out.println();
     }
 }
