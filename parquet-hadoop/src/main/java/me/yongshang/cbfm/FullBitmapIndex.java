@@ -27,16 +27,16 @@ import java.util.*;
  * Created by yongshangwu on 2016/11/8.
  */
 public class FullBitmapIndex {
-    public static boolean ON = true;
+    public static boolean ON = false;
 
     public static double falsePositiveProbability = 0.1;
     private long predictedCount;
     public static String[] dimensions = new String[]
-//            {"p_brand", "p_type","p_container"};
-                {"sip", "dip", "nip"};
+            {"p_brand", "p_type","p_container"};
+//                {"sip", "dip", "nip"};
     public static String[][] reducedDimensions = new String[][]
-//        {{"p_type", "p_container"}};
-        {{"dip", "nip"}};
+        {{"p_type", "p_container"}};
+//        {{"dip", "nip"}};
 
     public static void setDimensions(String[] dimensions, String[][] reducedDimensions){
         FullBitmapIndex.dimensions = dimensions;

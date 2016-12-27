@@ -30,11 +30,11 @@ import java.util.Random;
 //import java.util.Random;
 
 public class CMDBF implements Serializable {
-    public static  boolean ON = false;
+    public static  boolean ON = true;
     public static double desiredFalsePositiveProbability = 0.1;
     public static String[] dimensions = new String[]
-//            {"p_brand", "p_type","p_container"};
-            {"sip", "dip", "nip"};
+            {"p_brand", "p_type","p_container"};
+//            {"sip", "dip", "nip"};
 
     private int saltCount;                     //hash函数个数
     private long[] salts;

@@ -21,6 +21,8 @@ package me.yongshang.cbfm.test;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 import me.yongshang.cbfm.MultiDBitmapIndex;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
 import org.junit.Test;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -380,5 +382,29 @@ public class FullBitmapIndexTest {
         index.insert(new byte[][]{{1},{2},{3}});
         assertTrue(index.contains(new String[]{"A", "C"}, new byte[][]{{1}, {3}}));
         System.out.println();
+    }
+
+    @Test
+    public void testTpchSize() throws Exception{
+        int elementCount =188172;
+        String filePath = "/Users/yongshangwu/Desktop/[tpch-skew]"+elementCount;
+
+        Configuration conf = new Configuration();
+        conf.set("fs.defaultFS", "hdfs://server1:9000");
+        FileSystem fs = FileSystem.get(conf);
+        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(new Path("/data/tpch/skew/sf25/part.tbl"))));
+
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
+        FullBitmapIndex index = new FullBitmapIndex(elementCount);
+        for (int i = 0; i < elementCount; i++) {
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            index.insert(new byte[][]{
+                    tokens[3].getBytes(),
+                    tokens[4].getBytes(),
+                    tokens[6].getBytes()
+            });
+        }
+        index.serialize(out);
     }
 }
