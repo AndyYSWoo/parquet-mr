@@ -125,7 +125,7 @@ public class FullBitmapIndex {
                 }
                 if(containAllReduced) continue;
 
-                // the ugliest hack I have ever done, only support 3D
+                // ugly hack, only support 3D
                 for(String exsistentCom : maps.keySet()){
                     if(exsistentCom.startsWith(result.get(0)) && result.size() >= 2){
                         String temp = result.remove(1);

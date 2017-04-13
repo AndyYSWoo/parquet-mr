@@ -30,7 +30,7 @@ import java.util.Random;
 //import java.util.Random;
 
 public class CMDBF implements Serializable {
-    public static  boolean ON = true;
+    public static  boolean ON = false;
     public static double desiredFalsePositiveProbability = 0.1;
     public static String[] dimensions = new String[]
             {"p_brand", "p_type","p_container"};

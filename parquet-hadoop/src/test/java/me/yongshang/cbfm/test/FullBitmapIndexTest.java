@@ -46,7 +46,8 @@ public class FullBitmapIndexTest {
         String[][] reducedDimensions = new String[][]{
                 new String[]{"B", "C", "D"}
         };
-        FullBitmapIndex index = new FullBitmapIndex(0.1, 1000, dimensions, reducedDimensions);
+        FullBitmapIndex index = new FullBitmapIndex(0.1, 10, dimensions, reducedDimensions);
+        index.insert(new byte[][]{{1}, {1}, {1}, {1}});
     }
     @Test
     public void testInsert(){

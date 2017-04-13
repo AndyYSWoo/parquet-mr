@@ -23,6 +23,7 @@ import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,10 +40,14 @@ public class BlockMetaData {
   private long rowCount;
   private long totalByteSize;
   private String path;
+  // CBFM index
   private String indexTableStr;
   public FullBitmapIndex index;
   public MDBF mdbfIndex;
   public CMDBF cmdbfIndex;
+  // Data skipping
+  public BitSet vector;
+  
   public BlockMetaData() {
   }
 

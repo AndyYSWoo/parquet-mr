@@ -34,6 +34,7 @@ import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
+import me.yongshang.dataskipping.DSConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -81,6 +82,9 @@ public class ParquetFileWriter {
   // CBFM support
   private byte[][][] rows;
   private int rowIndex;
+
+  // Data skipping support
+  private BitSet vector;
 
   private static final Log LOG = Log.getLog(ParquetFileWriter.class);
 
@@ -330,6 +334,7 @@ public class ParquetFileWriter {
     }else if(CMDBF.ON){
       rows = new byte[(int) recordCount][CMDBF.dimensions.length][];
     }
+    if(DSConfig.ON) vector = new BitSet();
   }
 
   /**
@@ -632,13 +637,13 @@ public class ParquetFileWriter {
           int offset = 0;
           for (int j = 0; j < currentRecordCount; j++) {
             offset = adjustOffset(offset, keys, dataRange);
-            switch (currentChunkType){
+            switch (currentChunkType) {
               case INT32:
-                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset+4);
+                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset + 4);
                 offset += 4;
                 break;
               case DOUBLE:
-                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset+8);
+                rows[j][i] = Arrays.copyOfRange(originalBytes, offset, offset + 8);
                 offset += 8;
                 break;
               case BINARY:
@@ -653,6 +658,33 @@ public class ParquetFileWriter {
         }
       }
     }
+
+    if(DSConfig.ON) {
+      String currentColumnName = currentChunkPath.toArray()[currentChunkPath.size()-1];
+      if(currentColumnName.equals("vector")){
+        byte[] originalBytes = bytes.toByteArray();
+        int offset = 0;
+        // Sort DataRange
+        ArrayList<Integer> keys = new ArrayList<>();
+        keys.addAll(dataRange.keySet());
+        Collections.sort(keys);
+        for (int j = 0; j < currentRecordCount; j++) {
+          offset = adjustOffset(offset, keys, dataRange);
+          int strLen = BytesUtils.readIntLittleEndian(originalBytes, offset);
+          offset += 4;
+          byte[] vectorBytes = Arrays.copyOfRange(originalBytes, offset, offset + strLen);
+          String vectorString = new String(vectorBytes);// doubts, bytes converted to string successfully?
+          for(int i = 0; i < DSConfig.m; ++i){
+            if(vectorString.charAt(i) == '1'){
+              vector.set(i);
+            }
+          }
+          offset += strLen;
+          break;
+        }
+      }
+    }
+
     bytes.writeAllTo(out);
     encodingStatsBuilder.addDataEncodings(dataEncodings);
     if (rlEncodings.isEmpty()) {
@@ -772,6 +804,9 @@ public class ParquetFileWriter {
     }
     if(checked){
         writeTime(System.currentTimeMillis() - start);
+    }
+    if(DSConfig.ON){
+      currentBlock.vector = vector;
     }
     rows = null;
     blocks.add(currentBlock);
@@ -1013,6 +1048,15 @@ public class ParquetFileWriter {
         blockMetaData.cmdbfIndex.serialize(out);
         writeSize(out.getPos()-start);
         blockMetaData.cmdbfIndex = null;
+      }
+    }
+    // Write out data skipping's feature vector as long type
+    if(DSConfig.ON){
+      List<BlockMetaData> blocks = footer.getBlocks();
+      out.writeInt(blocks.size());
+      for (BlockMetaData blockMetaData : blocks) {
+        out.writeLong(blockMetaData.getStartingPos());
+        out.writeLong(blockMetaData.vector.toLongArray()[0]);
       }
     }
     System.out.println("whole: "+(out.getPos()-allStart));

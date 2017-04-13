@@ -76,6 +76,16 @@ public class RowGroupFilter implements Visitor<List<BlockMetaData>> {
     DICTIONARY
   }
 
+  public static List<BlockMetaData> filterRowGroupsByVector(Filter filter, List<BlockMetaData> blocks){
+    List<BlockMetaData> candidateBlocks = new ArrayList<>();
+    for (BlockMetaData block : blocks) {
+      if(block.vector.equals(null)){
+        candidateBlocks.add(block);
+      }
+    }
+    return candidateBlocks;
+  }
+
   public static List<BlockMetaData> filterRowGroupsByCBFM(Filter filter, List<BlockMetaData> blocks, MessageType schema){
     if(blocks.isEmpty()) return blocks;
     if(!(CBFM.ON || FullBitmapIndex.ON || MDBF.ON || CMDBF.ON)) return blocks;

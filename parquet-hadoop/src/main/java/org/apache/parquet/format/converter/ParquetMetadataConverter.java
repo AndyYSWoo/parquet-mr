@@ -22,22 +22,15 @@ import static org.apache.parquet.format.Util.readFileMetaData;
 import static org.apache.parquet.format.Util.writePageHeader;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.CMDBF;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
+import me.yongshang.dataskipping.DSConfig;
 import org.apache.hadoop.fs.*;
 import org.apache.parquet.CorruptStatistics;
 import org.apache.parquet.Log;
@@ -715,6 +708,27 @@ public class ParquetMetadataConverter {
         for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
           if(startPos == blockMetaData.getStartingPos()){
             blockMetaData.cmdbfIndex = index;
+          }
+        }
+      }
+    }
+
+    // Load feature vector
+    if(DSConfig.ON){
+      DataInput in = new DataInputStream(from);
+      int blockCount = in.readInt();
+      for (int i = 0; i < blockCount; i++) {
+        long startPos = in.readLong();
+        long vectorLong = in.readLong();
+        BitSet vector = new BitSet();
+        for (int j = 0; j < DSConfig.m; j++) {
+          if((1L << i & vectorLong) != 0){
+            vector.set(i);
+          }
+        }
+        for (BlockMetaData blockMetaData : parquetMetadata.getBlocks()) {
+          if(startPos == blockMetaData.getStartingPos()){
+            blockMetaData.vector = vector;
           }
         }
       }
