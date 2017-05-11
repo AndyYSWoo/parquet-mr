@@ -17,6 +17,9 @@
  * under the License.
  */
 package me.yongshang.cbfm;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -120,7 +123,7 @@ public class CBFM{
 	private long[] salt_ = null;						//每个哈希采用的种子（使用一个哈希函数，传入不同的种子，实现多个哈希函数）
 	// 1D table
 	private long totalBitSize = 1l;	// 总位数组大小[bit]
-	private int longLen;			// 总位数组大小[long]
+	private long longLen;			// 总位数组大小[long]
 	private long[] bit_table_;		// 位数组，一维long
 	
 	private static void debugPrint(String str){
@@ -170,7 +173,7 @@ public class CBFM{
 		String[] tokens = str.split(",");
 		predicted_element_count_ = Long.valueOf(tokens[0]);
 		longLen = Integer.valueOf(tokens[1]);
-		bit_table_ = new long[longLen];
+		bit_table_ = new long[(int)longLen];
 		for(int i = 0; i<tokens.length-2; ++i){
 			int separateIndex = tokens[i+2].indexOf(":");
 			bit_table_[Integer.valueOf(tokens[i+2].substring(0,separateIndex))] =
@@ -219,7 +222,7 @@ public class CBFM{
 	private void generateTable(){
 		calcTableSize();
 		displayParams();
-		bit_table_ = new long[longLen];
+		bit_table_ = new long[(int)longLen];
 	}
 	private void calcTableSize(){
 		//计算m^d
@@ -238,8 +241,7 @@ public class CBFM{
 				totalBitSize += factorizationModifyNum(dimension, reducedimensions, new int[]{j}, i);
 			}
 		}
-		
-		longLen = (int)(((totalBitSize + BITS_PER_LONG - 1) / BITS_PER_LONG));
+		longLen = ((totalBitSize + BITS_PER_LONG - 1) / BITS_PER_LONG);
 		// TODO better way?
 		if(sizeLimit != -1){// if size limit is set
 			if(longLen*BITS_PER_LONG/(1024*1024.0) > sizeLimit){// execeeds size limit
@@ -658,5 +660,14 @@ public class CBFM{
 		String compressedStr = sb.toString();
 //		debugPrint("compressed table: "+compressedStr);
 		return compressedStr;
+	}
+
+	public void serialize(DataOutput out) throws IOException {
+		long[] table = this.bit_table_;
+		for (int i = 0; i < table.length; i++) {
+			if(table[i] != 0){
+				out.write(ByteBuffer.allocate(8).putLong(table[i]).array());
+			}
+		}
 	}
 }

@@ -108,4 +108,30 @@ public class CBFMTest {
 
     }
 
+    @Test
+    public void testBFMSize() throws Exception {
+        int elementCount = 188172;
+        CBFM.DEBUG = true;
+        CBFM.desired_false_positive_probability_ = 0.1;
+        CBFM.setIndexedDimensions(new String[]{"a", "b", "c"});
+        CBFM.reducedimensions = new int[]{};
+        CBFM cbfm = new CBFM(elementCount);
+
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen-skew/partsupp.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        for(int i = 0; i < elementCount; i ++){
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            byte[][] bytes = new byte[3][];
+            bytes[0] = ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[2])).array();
+            bytes[1] = tokens[4].getBytes();
+            bytes[2] = ByteBuffer.allocate(8).putDouble(Double.valueOf(tokens[3])).array();
+            cbfm.insert(cbfm.calculateIdxsForInsert(bytes));
+        }
+
+        String filePath = "/Users/yongshangwu/Desktop/[BFM]"+elementCount;
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
+        cbfm.serialize(out);
+
+    }
 }

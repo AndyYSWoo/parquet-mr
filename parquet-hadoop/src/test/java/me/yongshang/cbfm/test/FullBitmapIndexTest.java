@@ -18,6 +18,7 @@
  */
 package me.yongshang.cbfm.test;
 
+import me.yongshang.cbfm.CBFM;
 import me.yongshang.cbfm.FullBitmapIndex;
 import me.yongshang.cbfm.MDBF;
 import me.yongshang.cbfm.MultiDBitmapIndex;
@@ -406,6 +407,29 @@ public class FullBitmapIndexTest {
                     tokens[6].getBytes()
             });
         }
+        index.serialize(out);
+    }
+
+    @Test
+    public void testSmallBlock() throws Exception{
+        int elementCount =18817;
+
+        FullBitmapIndex index = new FullBitmapIndex(elementCount);
+
+        FileReader reader = new FileReader("/Users/yongshangwu/Downloads/tpch_2_17_0/dbgen-skew/partsupp.tbl");
+        BufferedReader br = new BufferedReader(reader);
+        for(int i = 0; i < elementCount; i ++){
+            String line = br.readLine();
+            String[] tokens = line.split("\\|");
+            byte[][] bytes = new byte[3][];
+            bytes[0] = ByteBuffer.allocate(4).putInt(Integer.valueOf(tokens[2])).array();
+            bytes[1] = tokens[4].getBytes();
+            bytes[2] = ByteBuffer.allocate(8).putDouble(Double.valueOf(tokens[3])).array();
+            index.insert(bytes);
+        }
+
+        String filePath = "/Users/yongshangwu/Desktop/[cbfm]"+elementCount;
+        DataOutput out = new DataOutputStream(new FileOutputStream(filePath));
         index.serialize(out);
     }
 }
